@@ -50,7 +50,7 @@ export async function restoreBackup(b: BackupFile): Promise<RestoreResult> {
   const keys = new Set(existing.map((w) => dupKey(w.title, w.content)));
   const ids = new Set(existing.map((w) => w.id));
   let added = 0, skipped = 0, dictAdded = 0;
-  await db.withTransactionAsync(async () => {
+  await db.withTransactionAsync(async (tx) => {
     for (const w of b.writings) {
       const k = dupKey(w.title, w.content);
       if (keys.has(k)) { skipped++; continue; }
@@ -59,12 +59,12 @@ export async function restoreBackup(b: BackupFile): Promise<RestoreResult> {
       await createWriting({
         id, title: w.title, content: w.content, category_id: w.category_id || 'free', author: w.author || '', original_transcript: w.original_transcript || '',
         is_favorite: w.is_favorite ? 1 : 0, created_at: w.created_at, updated_at: w.updated_at || w.created_at,
-      });
+      }, tx);
       added++;
     }
     for (const d of b.dictionary ?? []) {
       if (!d || typeof d.word !== 'string' || !d.word.trim()) continue;
-      const r = await db.runAsync('INSERT OR IGNORE INTO custom_dictionary (word,note,wrong_forms,created_at) VALUES (?,?,?,?)', [d.word.trim(), d.note ?? '', d.wrong_forms ?? '', Date.now()]);
+      const r = await tx.runAsync('INSERT OR IGNORE INTO custom_dictionary (word,note,wrong_forms,created_at) VALUES (?,?,?,?)', [d.word.trim(), d.note ?? '', d.wrong_forms ?? '', Date.now()]);
       dictAdded += r.changes;
     }
   });
