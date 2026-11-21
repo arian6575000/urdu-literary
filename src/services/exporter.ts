@@ -32,7 +32,7 @@ export async function exportTxt(list: Writing[]): Promise<void> {
 let fontB64: string | null = null;
 async function loadFontBase64(): Promise<string> {
   if (fontB64) return fontB64;
-  const a = Asset.fromModule(require('../../assets/fonts/AlviNastaleeq.woff2'));
+  const a = Asset.fromModule(require('../../assets/fonts/AlviNastaleeq.ttf'));
   await a.downloadAsync();
   const bytes = await new File(a.localUri || a.uri).bytes();
   let bin = ''; const CH = 0x8000;
@@ -43,7 +43,7 @@ async function loadFontBase64(): Promise<string> {
 
 /** Real A4 PDF: HTML with the font embedded as base64, so Urdu is shaped by the WebView text engine (RTL + ligatures). */
 export async function exportPdf(list: Writing[], o: Omit<PdfOptions, 'fontBase64' | 'fontFormat'>): Promise<string> {
-  const html = buildPdfHtml(list, { ...o, fontBase64: await loadFontBase64(), fontFormat: 'woff2' });
+  const html = buildPdfHtml(list, { ...o, fontBase64: await loadFontBase64(), fontFormat: 'truetype' });
   const r = await Print.printToFileAsync({ html, width: 595, height: 842 });
   await logExport(list.map((w) => w.id), 'pdf');
   await shareFile(r.uri, 'application/pdf', 'PDF');
