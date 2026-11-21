@@ -42,7 +42,7 @@ function TabBar({ state, navigation }: any) {
 
 export default function TabsLayout() {
   return (
-    <Tabs tabBar={(p) => <TabBar {...p} />} screenOptions={{ headerShown: false }}>
+    <Tabs tabBar={(p) => <TabBar {...p} />} screenOptions={{ headerShown: false, lazy: true, freezeOnBlur: true }}>
       {ITEMS.map((i) => <Tabs.Screen key={i.name} name={i.name} options={{ title: i.label }} />)}
     </Tabs>
   );
