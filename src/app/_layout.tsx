@@ -18,8 +18,30 @@ import { useSettings } from '../stores/settings';
 import { hasPin } from '../services/privacy/lock';
 import { LockScreen } from '../components/LockScreen';
 import { OverlayHost } from '../components/design-system';
+import { loadDiagnostics, logEvent } from '../services/diagnostics';
+import { UText, Button } from '../components/design-system';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
+
+// Record every uncaught JS error in the diagnostics log (Settings → تشخیصی لاگ) before the default handler runs.
+try {
+  const EU = (globalThis as any).ErrorUtils;
+  const prev = EU?.getGlobalHandler?.();
+  EU?.setGlobalHandler?.((e: any, fatal?: boolean) => { logEvent(fatal ? 'FATAL' : 'js-error', `${e?.name ?? 'Error'}: ${e?.message ?? e}\n${String(e?.stack ?? '').split('\n').slice(0, 6).join('\n')}`); prev?.(e, fatal); });
+} catch { /* ignore */ }
+
+/** expo-router renders this instead of a white screen / app exit when a screen throws while rendering. */
+export function ErrorBoundary({ error, retry }: { error: Error; retry: () => void }) {
+  logEvent('render-error', `${error?.name}: ${error?.message}\n${String(error?.stack ?? '').split('\n').slice(0, 6).join('\n')}`);
+  return (
+    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 12, backgroundColor: COLORS.bg }}>
+      <UText size={24} color={COLORS.primary} center>{S.crashTitle}</UText>
+      <UText size={16} center>{S.crashText}</UText>
+      <Text selectable style={{ color: COLORS.muted, fontSize: 12, textAlign: 'center' }}>{String(error?.message ?? '').slice(0, 200)}</Text>
+      <Button label={S.retry} onPress={retry} />
+    </View>
+  );
+}
 
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({ AlviNastaleeq: require('../../assets/fonts/AlviNastaleeq.ttf') });
@@ -35,6 +57,7 @@ export default function RootLayout() {
         await db.execAsync('PRAGMA journal_mode = WAL;');
         await initDatabase(fromExpo(db));
         await useSettings.getState().load();
+        await loadDiagnostics();
         setLocked(await hasPin());
         setDbReady(true);
       } catch (e: any) { setDbError(String(e?.message || e)); }

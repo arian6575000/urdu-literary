@@ -8,8 +8,8 @@ export async function initDatabase(db: Db): Promise<void> {
   let v = row?.user_version ?? 0;
   while (v < MIGRATIONS.length) {
     const sql = MIGRATIONS[v];
-    await db.withTransactionAsync(async () => {
-      await db.execAsync(sql);
+    await db.withTransactionAsync(async (tx) => {
+      await tx.execAsync(sql);
     });
     v++;
     await db.execAsync(`PRAGMA user_version = ${v};`);

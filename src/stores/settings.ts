@@ -5,6 +5,7 @@ export interface SettingsState {
   loaded: boolean;
   onboarded: boolean;
   engine: 'device' | 'cloud';
+  speechLang: 'ur-PK' | 'ur-IN';
   proxyUrl: string;
   defaultAuthor: string;
   autoSave: boolean;
@@ -14,7 +15,7 @@ export interface SettingsState {
   set<K extends keyof Omit<SettingsState, 'load' | 'set' | 'loaded'>>(key: K, value: SettingsState[K]): Promise<void>;
 }
 
-const DEFAULTS = { onboarded: false, engine: 'device' as const, proxyUrl: '', defaultAuthor: '', autoSave: true, screenSecurity: false, editorSize: 24, editorSpacing: 2.0, readerSize: 26, readerSpacing: 2.1, readerAlign: 'right' as const };
+const DEFAULTS = { onboarded: false, engine: 'device' as const, speechLang: 'ur-PK' as const, proxyUrl: '', defaultAuthor: '', autoSave: true, screenSecurity: false, editorSize: 24, editorSpacing: 2.0, readerSize: 26, readerSpacing: 2.1, readerAlign: 'right' as const };
 
 export const useSettings = create<SettingsState>((setState, get) => ({
   loaded: false, ...DEFAULTS,
