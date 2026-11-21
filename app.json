@@ -1,0 +1,71 @@
+{
+  "expo": {
+    "name": "اردو ادبی ڈائری",
+    "slug": "urdu-literary-app",
+    "scheme": "urduliterary",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#F7F3EA"
+    },
+    "android": {
+      "package": "com.urduliterary.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#174C3A",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "allowBackup": false,
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ],
+      "blockedPermissions": [
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.SYSTEM_ALERT_WINDOW"
+      ]
+    },
+    "plugins": [
+      "expo-router",
+      "expo-sqlite",
+      "expo-secure-store",
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "ایپ کھولنے کے لیے بایومیٹرک استعمال کریں"
+        }
+      ],
+      [
+        "expo-localization",
+        {
+          "supportsRTL": true
+        }
+      ],
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "آواز سے لکھنے کے لیے مائیکروفون درکار ہے"
+        }
+      ],
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "آواز سے لکھنے کے لیے مائیکروفون درکار ہے",
+          "speechRecognitionPermission": "اردو آواز پہچاننے کے لیے اجازت درکار ہے"
+        }
+      ]
+    ],
+    "extra": {
+      "speechProxyUrl": ""
+    },
+    "experiments": {
+      "typedRoutes": false
+    }
+  }
+}
