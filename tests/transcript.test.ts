@@ -48,10 +48,11 @@ class Fake implements UrduSpeechProvider {
   partial(t: string) { this.p.forEach((c) => c(t)); } final(t: string) { this.f.forEach((c) => c(t)); } end() { this.n.forEach((c) => c()); } err(x: SpeechError) { this.e.forEach((c) => c(x)); }
 }
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+const FAST = { restartDelayMs: 0, resumeDelayMs: 0 };
 
 (async () => {
   // happy path + pause/resume + auto-restart + stop
-  { const f = new Fake(); const c = new VoiceSessionController(f);
+  { const f = new Fake(); const c = new VoiceSessionController(f, FAST);
     await c.start(['غالب']); assert.equal(c.snapshot().state, 'listening'); assert.equal(f.starts, 1);
     f.partial('دل'); f.partial('دلِ ناداں'); assert.equal(c.snapshot().tentative, 'دلِ ناداں'); assert.equal(c.snapshot().confirmed, '');
     f.final('دلِ ناداں تجھے ہوا کیا ہے'); assert.equal(c.snapshot().confirmed, 'دلِ ناداں تجھے ہوا کیا ہے');
@@ -62,19 +63,38 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
     f.final('کی دوا کیا ہے'); await c.stop(); await sleep(60); assert.equal(c.snapshot().state, 'stopped');
     assert.equal(c.snapshot().full, 'دلِ ناداں تجھے ہوا کیا ہے آخر اس درد کی دوا کیا ہے'); c.dispose(); }
   // permission denied
-  { const f = new Fake(); f.perm = false; const c = new VoiceSessionController(f); await c.start();
+  { const f = new Fake(); f.perm = false; const c = new VoiceSessionController(f, FAST); await c.start();
     assert.equal(c.snapshot().state, 'error'); assert.equal(c.snapshot().error?.code, 'permission'); }
   // offline / unsupported
-  { const f = new Fake(); f.avail = { ok: false, reason: 'offline' }; const c = new VoiceSessionController(f); await c.start(); assert.equal(c.snapshot().error?.code, 'network'); }
-  { const f = new Fake(); f.avail = { ok: false, reason: 'unsupported' }; const c = new VoiceSessionController(f); await c.start(); assert.equal(c.snapshot().error?.code, 'unsupported'); }
-  // error mid-session keeps text
-  { const f = new Fake(); const c = new VoiceSessionController(f); await c.start();
+  { const f = new Fake(); f.avail = { ok: false, reason: 'offline' }; const c = new VoiceSessionController(f, FAST); await c.start(); assert.equal(c.snapshot().error?.code, 'network'); }
+  { const f = new Fake(); f.avail = { ok: false, reason: 'unsupported' }; const c = new VoiceSessionController(f, FAST); await c.start(); assert.equal(c.snapshot().error?.code, 'unsupported'); }
+  // error mid-session keeps text (no retries configured -> real error)
+  { const f = new Fake(); const c = new VoiceSessionController(f, { ...FAST, networkRetries: 0 }); await c.start();
     f.final('پہلا جملہ'); f.partial('دوسرا'); f.err({ code: 'network', message: 'x', fatal: true });
     const s = c.snapshot(); assert.equal(s.state, 'error'); assert.equal(s.full, 'پہلا جملہ دوسرا'); assert.equal(s.tentative, ''); }
   // no-speech while listening is not an error
-  { const f = new Fake(); const c = new VoiceSessionController(f); await c.start(); f.err({ code: 'no-speech', message: '', fatal: false }); await sleep(5);
+  { const f = new Fake(); const c = new VoiceSessionController(f, FAST); await c.start(); f.err({ code: 'no-speech', message: '', fatal: false }); await sleep(5);
     assert.equal(c.snapshot().state, 'listening'); assert.equal(f.starts, 2); }
   // retry after error
-  { const f = new Fake(); f.perm = false; const c = new VoiceSessionController(f); await c.start(); f.perm = true; await c.start(); assert.equal(c.snapshot().state, 'listening'); }
+  { const f = new Fake(); f.perm = false; const c = new VoiceSessionController(f, FAST); await c.start(); f.perm = true; await c.start(); assert.equal(c.snapshot().state, 'listening'); }
+  // transient engine errors (busy/client) are retried, session keeps listening, text kept
+  { const f = new Fake(); const c = new VoiceSessionController(f, FAST); await c.start(); f.final('پہلی بات');
+    f.err({ code: 'transient', message: 'busy', fatal: false }); await sleep(10);
+    assert.equal(c.snapshot().state, 'listening'); assert.equal(f.starts, 2); assert.equal(c.snapshot().confirmed, 'پہلی بات');
+    f.final('دوسری بات'); f.err({ code: 'transient', message: 'client', fatal: false }); await sleep(10); assert.equal(f.starts, 3); // a result in between resets the counter
+    assert.equal(c.snapshot().state, 'listening'); }
+  // too many consecutive transient errors -> real error, text kept
+  { const f = new Fake(); const c = new VoiceSessionController(f, { ...FAST, maxTransient: 2 }); await c.start(); f.final('متن');
+    for (let i = 0; i < 3; i++) { f.err({ code: 'transient', message: 'busy', fatal: false }); await sleep(10); }
+    assert.equal(c.snapshot().state, 'error'); assert.equal(c.snapshot().confirmed, 'متن'); }
+  // brief network loss is retried, then recovers
+  { const f = new Fake(); const c = new VoiceSessionController(f, FAST); await c.start(); f.err({ code: 'network', message: 'x', fatal: true }); await sleep(10);
+    assert.equal(c.snapshot().state, 'listening'); f.partial('واپس'); assert.equal(c.snapshot().tentative, 'واپس'); }
+  // events from ANOTHER screen's session must not disturb an idle controller (shared native recognizer)
+  { const f = new Fake(); const c = new VoiceSessionController(f, FAST);
+    f.err({ code: 'network', message: 'x', fatal: true }); f.final('بیگانہ متن'); f.partial('اور'); f.end();
+    assert.equal(c.snapshot().state, 'idle'); assert.equal(c.snapshot().full, ''); assert.equal(c.snapshot().error, null); }
+  // pause -> resume waits, then listens again
+  { const f = new Fake(); const c = new VoiceSessionController(f, { restartDelayMs: 0, resumeDelayMs: 5 }); await c.start(); await c.pause(); const p = c.resume(); assert.equal(c.snapshot().state, 'starting'); await p; assert.equal(c.snapshot().state, 'listening'); }
   console.log('transcript + state machine ✓');
 })();
