@@ -76,4 +76,27 @@ export const MIGRATIONS: string[] = [
     value TEXT NOT NULL
   );
   `,
+  // v2 — collections (poetry/prose groupings) and saved card designs
+  `
+  CREATE TABLE collections (
+    id TEXT PRIMARY KEY NOT NULL,
+    title TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    color INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+  );
+  CREATE TABLE collection_items (
+    collection_id TEXT NOT NULL REFERENCES collections(id) ON DELETE CASCADE,
+    writing_id TEXT NOT NULL REFERENCES writings(id) ON DELETE CASCADE,
+    added_at INTEGER NOT NULL,
+    PRIMARY KEY (collection_id, writing_id)
+  );
+  CREATE INDEX idx_items_writing ON collection_items(writing_id);
+  CREATE TABLE card_designs (
+    writing_id TEXT PRIMARY KEY NOT NULL REFERENCES writings(id) ON DELETE CASCADE,
+    design TEXT NOT NULL,
+    updated_at INTEGER NOT NULL
+  );
+  `,
 ];

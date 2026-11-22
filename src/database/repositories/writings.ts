@@ -1,6 +1,7 @@
 import { getDb, type Db } from '../db';
 import type { Writing, WritingQuery, WritingVersion } from '../../types';
 import { countWords, normalizeUrdu, uid } from '../../utils/text';
+import { CATEGORIES } from '../../constants/categories';
 
 const now = () => Date.now();
 
@@ -67,8 +68,11 @@ export async function listWritings(q: WritingQuery = {}): Promise<Writing[]> {
   const where: string[] = [], params: any[] = [];
   if (q.category) { where.push('category_id = ?'); params.push(q.category); }
   if (q.favoritesOnly) where.push('is_favorite = 1');
-  const order = q.sort === 'oldest' ? 'created_at ASC' : 'updated_at DESC';
+  if (q.kind) { const ids = CATEGORIES.filter((c) => c.poetry === (q.kind === 'poetry')).map((c) => c.id); where.push(`category_id IN (${ids.map(() => '?').join(',')})`); params.push(...ids); }
+  if (q.collectionId) { where.push('id IN (SELECT writing_id FROM collection_items WHERE collection_id = ?)'); params.push(q.collectionId); }
+  const order = q.sort === 'oldest' ? 'created_at ASC' : q.sort === 'words' ? 'word_count DESC, updated_at DESC' : 'updated_at DESC';
   let rows = await getDb().getAllAsync<Writing>(`SELECT * FROM writings ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY ${order}`, params);
+  if (q.sort === 'title') rows = rows.slice().sort((a, b) => (a.title || '~').localeCompare(b.title || '~', 'ur'));
   const text = (q.text ?? '').trim();
   if (text) {
     const needles = normalizeUrdu(text).split(/\s+/).filter(Boolean);
@@ -80,14 +84,15 @@ export async function listWritings(q: WritingQuery = {}): Promise<Writing[]> {
   return q.limit ? rows.slice(0, q.limit) : rows;
 }
 
-export async function countWritings(): Promise<{ total: number; favorites: number; byCategory: Record<string, number> }> {
+export async function countWritings(): Promise<{ total: number; favorites: number; words: number; byCategory: Record<string, number> }> {
   const db = getDb();
   const t = await db.getFirstAsync<{ n: number }>('SELECT COUNT(*) n FROM writings');
   const f = await db.getFirstAsync<{ n: number }>('SELECT COUNT(*) n FROM writings WHERE is_favorite = 1');
+  const wd = await db.getFirstAsync<{ n: number | null }>('SELECT SUM(word_count) n FROM writings');
   const rows = await db.getAllAsync<{ category_id: string; n: number }>('SELECT category_id, COUNT(*) n FROM writings GROUP BY category_id');
   const byCategory: Record<string, number> = {};
   rows.forEach((r) => { byCategory[r.category_id] = r.n; });
-  return { total: t?.n ?? 0, favorites: f?.n ?? 0, byCategory };
+  return { total: t?.n ?? 0, favorites: f?.n ?? 0, words: wd?.n ?? 0, byCategory };
 }
 
 export const listVersions = (writingId: string) =>
@@ -102,6 +107,6 @@ export async function restoreVersion(versionId: number): Promise<Writing | null>
 export async function wipeAllWritings() {
   const db = getDb();
   await db.withTransactionAsync(async (tx) => {
-    for (const t of ['writing_versions', 'voice_transcripts', 'voice_sessions', 'favorites', 'export_history', 'writings', 'custom_dictionary']) await tx.runAsync(`DELETE FROM ${t}`);
+    for (const t of ['card_designs', 'collection_items', 'collections', 'writing_versions', 'voice_transcripts', 'voice_sessions', 'favorites', 'export_history', 'writings', 'custom_dictionary']) await tx.runAsync(`DELETE FROM ${t}`);
   });
 }
