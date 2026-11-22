@@ -31,5 +31,6 @@ export interface UrduSpeechProvider {
   onVolume(cb: (level01: number) => void): Unsub;
 }
 
-export type SpeechErrorCode = 'permission' | 'network' | 'no-speech' | 'unsupported' | 'audio' | 'server' | 'unknown';
+/** 'transient' = a recoverable engine hiccup (busy, client error): the controller retries instead of failing. */
+export type SpeechErrorCode = 'permission' | 'network' | 'no-speech' | 'transient' | 'unsupported' | 'audio' | 'server' | 'unknown';
 export interface SpeechError { code: SpeechErrorCode; message: string; fatal: boolean }

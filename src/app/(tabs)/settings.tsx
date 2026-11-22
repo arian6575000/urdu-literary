@@ -39,6 +39,8 @@ export default function Settings() {
       </Card>
       <SectionTitle>{S.privacy}</SectionTitle>
       <Card><ListRow icon="shield-checkmark-outline" title={S.privacy} sub={`${S.pinLock} · ${S.permissions}`} onPress={() => router.push('/privacy')} /></Card>
+      <SectionTitle>{S.diagnostics}</SectionTitle>
+      <Card><ListRow icon="bug-outline" title={S.diagnostics} sub={S.diagnosticsHint} onPress={() => router.push('/diagnostics')} /></Card>
       <SectionTitle>{S.about}</SectionTitle>
       <Card style={{ gap: 2 }}>
         <ListRow icon="information-circle-outline" title={APP_NAME} sub={`${S.version} ${Constants.expoConfig?.version ?? '1.0.0'}`} />

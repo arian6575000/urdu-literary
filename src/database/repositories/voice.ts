@@ -30,9 +30,9 @@ export async function lastUnlinkedTranscript(): Promise<(VoiceTranscript & { ses
 export const listSessions = () => getDb().getAllAsync<VoiceSession>('SELECT * FROM voice_sessions ORDER BY started_at DESC');
 export async function deleteAllVoiceData() {
   const db = getDb();
-  await db.withTransactionAsync(async () => {
-    await db.runAsync('DELETE FROM voice_transcripts');
-    await db.runAsync('DELETE FROM voice_sessions');
-    await db.runAsync("UPDATE writings SET original_transcript = ''");
+  await db.withTransactionAsync(async (tx) => {
+    await tx.runAsync('DELETE FROM voice_transcripts');
+    await tx.runAsync('DELETE FROM voice_sessions');
+    await tx.runAsync("UPDATE writings SET original_transcript = ''");
   });
 }

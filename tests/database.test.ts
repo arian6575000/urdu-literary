@@ -42,8 +42,8 @@ import * as St from '../src/database/repositories/settings';
   // sort
   const newest = await W.listWritings({ sort: 'newest' }); assert.equal(newest.length, 2);
   // dictionary
-  await D.saveDictEntry({ word: 'غالبؔ', wrong_forms: 'غالب، غالیب' });
-  await D.saveDictEntry({ word: 'غالبؔ', note: 'شاعر' }); // upsert, no duplicate
+  await D.saveDictEntry({ word: 'غالب֔', wrong_forms: 'غالب، غالیب' });
+  await D.saveDictEntry({ word: 'غالب֔', note: 'شاعر' }); // upsert, no duplicate
   const dl = await D.listDictionary(); assert.equal(dl.length, 1); assert.equal(dl[0].note, 'شاعر');
   await assert.rejects(() => D.saveDictEntry({ word: '  ' }));
   // voice: original kept apart from edited
@@ -59,5 +59,14 @@ import * as St from '../src/database/repositories/settings';
   await W.deleteWriting(a.id); assert.equal((await W.listVersions(a.id)).length, 0);
   const ic = await integrityCheck(getDb()); assert.ok(ic.ok, ic.detail);
   await W.wipeAllWritings(); assert.equal((await W.countWritings()).total, 0);
+  // concurrency: many screens querying while autosave transactions run must never interleave or nest
+  await Promise.all([
+    ...Array.from({ length: 25 }, (_, i) => W.createWriting({ title: `ہم وقت ${i}`, content: `متن ${i}` })),
+    ...Array.from({ length: 25 }, () => W.listWritings({ text: 'متن' })),
+    ...Array.from({ length: 10 }, async () => { const x = await W.createWriting({ title: 'ٹی', content: 'م' }); await W.updateWriting(x.id, { content: 'نیا' }, true); await W.setFavorite(x.id, true); }),
+    ...Array.from({ length: 25 }, () => W.countWritings()),
+  ]);
+  assert.equal((await W.countWritings()).total, 35);
+  assert.equal((await W.listWritings({ favoritesOnly: true })).length, 10);
   console.log('database ✓');
 })();

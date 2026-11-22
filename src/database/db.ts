@@ -4,7 +4,8 @@ export interface Db {
   runAsync(sql: string, params?: any[]): Promise<{ lastInsertRowId: number; changes: number }>;
   getAllAsync<T>(sql: string, params?: any[]): Promise<T[]>;
   getFirstAsync<T>(sql: string, params?: any[]): Promise<T | null>;
-  withTransactionAsync(task: () => Promise<void>): Promise<void>;
+  /** `tx` talks to the same connection but bypasses the serial queue — use ONLY `tx` inside the task. */
+  withTransactionAsync(task: (tx: Db) => Promise<void>): Promise<void>;
 }
 let _db: Db | null = null;
 export const setDb = (d: Db) => { _db = d; };

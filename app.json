@@ -10,7 +10,7 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#F7F3EA"
+      "backgroundColor": "#174C3A"
     },
     "android": {
       "package": "com.urduliterary.app",

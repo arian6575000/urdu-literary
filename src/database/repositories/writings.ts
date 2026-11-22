@@ -1,4 +1,4 @@
-import { getDb } from '../db';
+import { getDb, type Db } from '../db';
 import type { Writing, WritingQuery, WritingVersion } from '../../types';
 import { countWords, normalizeUrdu, uid } from '../../utils/text';
 
@@ -6,8 +6,7 @@ const now = () => Date.now();
 
 export interface WritingInput { title?: string; content?: string; category_id?: string; author?: string; original_transcript?: string }
 
-export async function createWriting(input: WritingInput & { id?: string; created_at?: number; updated_at?: number; is_favorite?: number }): Promise<Writing> {
-  const db = getDb();
+export async function createWriting(input: WritingInput & { id?: string; created_at?: number; updated_at?: number; is_favorite?: number }, db: Db = getDb()): Promise<Writing> {
   const t = now();
   const w: Writing = {
     id: input.id ?? uid(), title: input.title ?? '', content: input.content ?? '', category_id: input.category_id ?? 'free',
@@ -35,13 +34,13 @@ export async function updateWriting(id: string, patch: WritingInput, snapshot = 
     author: patch.author ?? cur.author, original_transcript: patch.original_transcript ?? cur.original_transcript,
     word_count: countWords(patch.content ?? cur.content), updated_at: now(),
   };
-  await db.withTransactionAsync(async () => {
+  await db.withTransactionAsync(async (tx) => {
     if (snapshot && (cur.title !== next.title || cur.content !== next.content) && (cur.content.trim() || cur.title.trim())) {
-      await db.runAsync('INSERT INTO writing_versions (writing_id,title,content,created_at) VALUES (?,?,?,?)', [id, cur.title, cur.content, now()]);
+      await tx.runAsync('INSERT INTO writing_versions (writing_id,title,content,created_at) VALUES (?,?,?,?)', [id, cur.title, cur.content, now()]);
       // keep the 30 most recent versions
-      await db.runAsync('DELETE FROM writing_versions WHERE writing_id = ? AND id NOT IN (SELECT id FROM writing_versions WHERE writing_id = ? ORDER BY created_at DESC, id DESC LIMIT 30)', [id, id]);
+      await tx.runAsync('DELETE FROM writing_versions WHERE writing_id = ? AND id NOT IN (SELECT id FROM writing_versions WHERE writing_id = ? ORDER BY created_at DESC, id DESC LIMIT 30)', [id, id]);
     }
-    await db.runAsync(
+    await tx.runAsync(
       'UPDATE writings SET title=?, content=?, category_id=?, author=?, original_transcript=?, word_count=?, updated_at=? WHERE id=?',
       [next.title, next.content, next.category_id, next.author, next.original_transcript, next.word_count, next.updated_at, id],
     );
@@ -53,10 +52,10 @@ export async function deleteWriting(id: string) { await getDb().runAsync('DELETE
 
 export async function setFavorite(id: string, on: boolean) {
   const db = getDb();
-  await db.withTransactionAsync(async () => {
-    await db.runAsync('UPDATE writings SET is_favorite = ? WHERE id = ?', [on ? 1 : 0, id]);
-    if (on) await db.runAsync('INSERT OR IGNORE INTO favorites (writing_id, created_at) VALUES (?,?)', [id, now()]);
-    else await db.runAsync('DELETE FROM favorites WHERE writing_id = ?', [id]);
+  await db.withTransactionAsync(async (tx) => {
+    await tx.runAsync('UPDATE writings SET is_favorite = ? WHERE id = ?', [on ? 1 : 0, id]);
+    if (on) await tx.runAsync('INSERT OR IGNORE INTO favorites (writing_id, created_at) VALUES (?,?)', [id, now()]);
+    else await tx.runAsync('DELETE FROM favorites WHERE writing_id = ?', [id]);
   });
 }
 
@@ -102,7 +101,7 @@ export async function restoreVersion(versionId: number): Promise<Writing | null>
 
 export async function wipeAllWritings() {
   const db = getDb();
-  await db.withTransactionAsync(async () => {
-    for (const t of ['writing_versions', 'voice_transcripts', 'voice_sessions', 'favorites', 'export_history', 'writings', 'custom_dictionary']) await db.runAsync(`DELETE FROM ${t}`);
+  await db.withTransactionAsync(async (tx) => {
+    for (const t of ['writing_versions', 'voice_transcripts', 'voice_sessions', 'favorites', 'export_history', 'writings', 'custom_dictionary']) await tx.runAsync(`DELETE FROM ${t}`);
   });
 }

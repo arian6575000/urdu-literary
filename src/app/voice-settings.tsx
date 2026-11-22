@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Linking } from 'react-native';
+import { router } from 'expo-router';
 import { COLORS } from '../constants/theme';
 import { S } from '../constants/strings';
 import { useSettings } from '../stores/settings';
@@ -21,6 +22,12 @@ export default function VoiceSettings() {
         <Chip label={S.engineDevice} icon="phone-portrait-outline" active={st.engine === 'device'} onPress={() => st.set('engine', 'device')} />
         <Chip label={S.engineCloud} icon="cloud-outline" active={st.engine === 'cloud'} onPress={() => st.set('engine', 'cloud')} />
       </Row>
+      <SectionTitle>{S.speechLang}</SectionTitle>
+      <Row gap={8} wrap>
+        <Chip label={S.langPK} active={st.speechLang === 'ur-PK'} onPress={() => st.set('speechLang', 'ur-PK')} />
+        <Chip label={S.langIN} active={st.speechLang === 'ur-IN'} onPress={() => st.set('speechLang', 'ur-IN')} />
+      </Row>
+      <Muted>{S.langHint}</Muted>
       <Card style={{ gap: 6 }}>
         <Row gap={8}><Icon name="phone-portrait-outline" size={20} color={COLORS.primary} /><UText size={17} color={COLORS.primary}>{S.engineDevice}</UText></Row>
         <UText size={14} color={COLORS.muted} spacing={1.8}>اردو (ur-PK) کی لائیو پہچان، ساتھ ساتھ عارضی متن، مفت۔ درستی فون کی گوگل آواز سروس پر منحصر ہے؛ آف لائن کے لیے فون کی ترتیبات میں اردو آواز کا پیک ڈاؤن لوڈ کریں۔</UText>
@@ -34,6 +41,7 @@ export default function VoiceSettings() {
         <Button label={S.save} onPress={saveCloud} />
       </Card>
       <Muted>{S.cloudPrivacy}</Muted>
+      <Button variant="ghost" icon="bug-outline" label={S.diagnostics} onPress={() => router.push('/diagnostics')} />
     </Screen>
   );
 }

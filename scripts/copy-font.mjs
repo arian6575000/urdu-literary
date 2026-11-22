@@ -1,8 +1,10 @@
-// Copies the Urdu font into assets/fonts/AlviNastaleeq.ttf so Metro can bundle it.
+// 1) generates the app icons  2) copies the Urdu font into assets/fonts/AlviNastaleeq.ttf so Metro can bundle it.
 // Font lives at assets/fonts/AlviNastaleeq.ttf (bundled). This script only re-copies it from the project root if you place the original there.
 import { copyFileSync, existsSync, mkdirSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+await import('./make-icons.mjs'); // always (re)generate icons first
 
 const app = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const dest = join(app, 'assets', 'fonts', 'AlviNastaleeq.ttf');

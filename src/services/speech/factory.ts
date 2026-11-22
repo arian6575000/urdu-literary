@@ -3,6 +3,6 @@ import { DeviceSpeechProvider } from './deviceProvider';
 import type { UrduSpeechProvider } from './types';
 
 export type EngineId = 'device' | 'cloud';
-export function createProvider(engine: EngineId, cloud: () => { baseUrl: string; token: string }): UrduSpeechProvider {
-  return engine === 'cloud' ? new CloudSpeechProvider(cloud) : new DeviceSpeechProvider();
+export function createProvider(engine: EngineId, cloud: () => { baseUrl: string; token: string }, lang: () => string = () => 'ur-PK'): UrduSpeechProvider {
+  return engine === 'cloud' ? new CloudSpeechProvider(cloud) : new DeviceSpeechProvider(lang);
 }

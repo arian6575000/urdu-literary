@@ -11,6 +11,7 @@ import { createWriting } from '../../database/repositories/writings';
 import { endVoiceSession, lastUnlinkedTranscript, linkSessionToWriting, saveTranscript, startVoiceSession } from '../../database/repositories/voice';
 import { getProxyToken } from '../../services/privacy/lock';
 import { useSettings } from '../../stores/settings';
+import { logEvent } from '../../services/diagnostics';
 import { toast, useUi } from '../../stores/ui';
 import { Button, Card, Chip, Icon, IconButton, Muted, Row, UText } from '../../components/design-system';
 import { CorrectionSheet } from '../../components/CorrectionSheet';
@@ -30,9 +31,11 @@ export function VoiceWriter({ embedded, category = 'free', onInsert }: Props) {
   const engine = useSettings((s) => s.engine);
   const proxyUrl = useSettings((s) => s.proxyUrl);
   const author = useSettings((s) => s.defaultAuthor);
+  const speechLang = useSettings((s) => s.speechLang);
+  const langRef = useRef(speechLang); langRef.current = speechLang;
   const tokenRef = useRef('');
   const proxyRef = useRef(proxyUrl); proxyRef.current = proxyUrl;
-  const ctrl = useMemo(() => new VoiceSessionController(createProvider(engine, () => ({ baseUrl: proxyRef.current, token: tokenRef.current }))), [engine]);
+  const ctrl = useMemo(() => new VoiceSessionController(createProvider(engine, () => ({ baseUrl: proxyRef.current, token: tokenRef.current }), () => langRef.current), { log: (m) => logEvent('voice', m) }), [engine]);
   const [snap, setSnap] = useState<Snapshot>(ctrl.snapshot());
   const [levels, setLevels] = useState<number[]>(() => Array(BARS).fill(0));
   const [edited, setEdited] = useState('');           // text after stop (user-editable)
@@ -40,6 +43,7 @@ export function VoiceWriter({ embedded, category = 'free', onInsert }: Props) {
   const [showFix, setShowFix] = useState(false);
   const [recovered, setRecovered] = useState<{ session_id: string; edited_text: string; original_text: string } | null>(null);
   const sessionId = useRef<string | null>(null);
+  const scrollRef = useRef<React.ComponentRef<typeof ScrollView>>(null);
   const prevState = useRef(snap.state);
 
   useEffect(() => { getProxyToken().then((t) => { tokenRef.current = t; }); }, [engine]);
@@ -119,7 +123,7 @@ export function VoiceWriter({ embedded, category = 'free', onInsert }: Props) {
       {/* transcript */}
       <View style={{ flex: embedded ? undefined : 1, minHeight: embedded ? 220 : 160, backgroundColor: COLORS.surface, borderRadius: RADII.lg, borderWidth: 1, borderColor: COLORS.line, padding: 14, ...SHADOW }}>
         {live || !finished ? (
-          <ScrollView ref={(r) => { r?.scrollToEnd({ animated: true }); }} contentContainerStyle={{ flexGrow: 1 }}>
+          <ScrollView ref={scrollRef} onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })} contentContainerStyle={{ flexGrow: 1 }}>
             {full ? (
               <Text2 confirmed={[edited, snap.confirmed].filter(Boolean).join(' ')} tentative={snap.tentative} />
             ) : <UText size={20} color={COLORS.muted} center style={{ marginTop: 40 }}>{S.tapToSpeak}</UText>}
@@ -133,6 +137,7 @@ export function VoiceWriter({ embedded, category = 'free', onInsert }: Props) {
       {snap.error ? (
         <Card style={{ backgroundColor: 'rgba(179,55,47,0.08)', borderColor: COLORS.danger, gap: 8 }}>
           <UText size={15} color={COLORS.danger}>{errText(snap.error)}</UText>
+          <Muted>({snap.error.code}{snap.error.message ? ` · ${snap.error.message.slice(0, 80)}` : ''})</Muted>
           <Row gap={8}>
             <Button small label={S.retry} onPress={begin} />
             {snap.error.code === 'permission' ? <Button small variant="ghost" label={S.openSettings} onPress={() => Linking.openSettings()} /> : null}
