@@ -1,49 +1,55 @@
 import React from 'react';
 import { Pressable, View } from 'react-native';
-import { Tabs, router } from 'expo-router';
+import { router } from 'expo-router';
+import { TabList, TabSlot, TabTrigger, Tabs, type TabTriggerSlotProps } from 'expo-router/ui';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, ROW, SHADOW, SIZES } from '../../constants/theme';
 import { S } from '../../constants/strings';
 import { Icon, IconName, UText } from '../../components/design-system';
 
-const ITEMS: { name: string; label: string; icon: IconName; active: IconName }[] = [
-  { name: 'index', label: S.home, icon: 'home-outline', active: 'home' },
-  { name: 'library', label: S.library, icon: 'library-outline', active: 'library' },
-  { name: 'voice', label: S.voice, icon: 'mic-outline', active: 'mic' },
-  { name: 'settings', label: S.settings, icon: 'settings-outline', active: 'settings' },
+const ITEMS: { name: string; href: '/' | '/library' | '/voice' | '/settings'; label: string; icon: IconName; active: IconName }[] = [
+  { name: 'index', href: '/', label: S.home, icon: 'home-outline', active: 'home' },
+  { name: 'library', href: '/library', label: S.library, icon: 'library-outline', active: 'library' },
+  { name: 'voice', href: '/voice', label: S.voice, icon: 'mic-outline', active: 'mic' },
+  { name: 'settings', href: '/settings', label: S.settings, icon: 'settings-outline', active: 'settings' },
 ];
 
-function TabBar({ state, navigation }: any) {
-  const insets = useSafeAreaInsets();
-  const item = (idx: number) => {
-    const it = ITEMS[idx];
-    const focused = state.index === state.routes.findIndex((r: any) => r.name === it.name);
-    return (
-      <Pressable key={it.name} onPress={() => navigation.navigate(it.name)} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 0 }} accessibilityRole="button" accessibilityLabel={it.label}>
-        <Icon name={focused ? it.active : it.icon} size={24} color={focused ? COLORS.primary : COLORS.muted} />
-        <UText size={12} color={focused ? COLORS.primary : COLORS.muted} center spacing={1.4}>{it.label}</UText>
-      </Pressable>
-    );
-  };
+/** One bottom-bar button. Receives onPress/isFocused from <TabTrigger asChild>. */
+function TabButton({ item, isFocused, onPress }: TabTriggerSlotProps & { item: (typeof ITEMS)[number] }) {
   return (
-    <View style={{ backgroundColor: COLORS.surface, borderTopWidth: 1, borderTopColor: COLORS.line, paddingBottom: insets.bottom, ...SHADOW }}>
-      <View style={{ flexDirection: ROW, height: SIZES.tabBar, alignItems: 'center' }}>
-        {item(0)}{item(1)}
-        <View style={{ width: SIZES.fab + 18, alignItems: 'center' }}>
-          <Pressable onPress={() => router.push('/create')} accessibilityLabel={S.newWriting} style={({ pressed }) => [{ marginTop: -30, width: SIZES.fab, height: SIZES.fab, borderRadius: SIZES.fab / 2, backgroundColor: COLORS.primary, alignItems: 'center', justifyContent: 'center', borderWidth: 4, borderColor: COLORS.bg, transform: [{ scale: pressed ? 0.94 : 1 }], ...SHADOW }]}>
-            <Icon name="add" size={34} color={COLORS.secondary} />
-          </Pressable>
-        </View>
-        {item(2)}{item(3)}
-      </View>
-    </View>
+    <Pressable onPress={onPress} style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }} accessibilityRole="button" accessibilityLabel={item.label}>
+      <Icon name={isFocused ? item.active : item.icon} size={24} color={isFocused ? COLORS.primary : COLORS.muted} />
+      <UText size={12} color={isFocused ? COLORS.primary : COLORS.muted} center spacing={1.4}>{item.label}</UText>
+    </Pressable>
   );
 }
 
+const trigger = (i: number) => (
+  <TabTrigger key={ITEMS[i].name} name={ITEMS[i].name} href={ITEMS[i].href as any} asChild><TabButton item={ITEMS[i]} /></TabTrigger>
+);
+
+/**
+ * Plain JS tab layout (no react-native-screens bottom-tabs): only the focused tab is mounted, the others are unmounted,
+ * so switching tabs never hides/detaches native screens and memory stays low.
+ */
 export default function TabsLayout() {
+  const insets = useSafeAreaInsets();
   return (
-    <Tabs tabBar={(p) => <TabBar {...p} />} screenOptions={{ headerShown: false, lazy: true, freezeOnBlur: true }}>
-      {ITEMS.map((i) => <Tabs.Screen key={i.name} name={i.name} options={{ title: i.label }} />)}
+    <Tabs>
+      <TabSlot detachInactiveScreens={false} renderFn={(descriptor, { isFocused }) => (isFocused ? <View key={descriptor.route.key} style={{ flex: 1 }}>{descriptor.render()}</View> : null)} />
+      <TabList asChild>
+        <View style={{ backgroundColor: COLORS.surface, borderTopWidth: 1, borderTopColor: COLORS.line, paddingBottom: insets.bottom, ...SHADOW }}>
+          <View style={{ flexDirection: ROW, height: SIZES.tabBar, alignItems: 'center' }}>
+            {trigger(0)}{trigger(1)}
+            <View style={{ width: SIZES.fab + 18, alignItems: 'center' }}>
+              <Pressable onPress={() => router.push('/create')} accessibilityLabel={S.newWriting} style={({ pressed }) => [{ marginTop: -30, width: SIZES.fab, height: SIZES.fab, borderRadius: SIZES.fab / 2, backgroundColor: COLORS.primary, alignItems: 'center', justifyContent: 'center', borderWidth: 4, borderColor: COLORS.bg, transform: [{ scale: pressed ? 0.94 : 1 }], ...SHADOW }]}>
+                <Icon name="add" size={34} color={COLORS.secondary} />
+              </Pressable>
+            </View>
+            {trigger(2)}{trigger(3)}
+          </View>
+        </View>
+      </TabList>
     </Tabs>
   );
 }

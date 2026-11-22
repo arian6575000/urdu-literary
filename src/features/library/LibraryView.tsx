@@ -54,7 +54,7 @@ export function LibraryView({ favoritesOnly = false, autoFocusSearch = false }: 
           key={grid ? 'grid' : 'list'} data={items} keyExtractor={(w) => w.id} numColumns={grid ? 2 : 1}
           columnWrapperStyle={grid ? { gap: 12 } : undefined}
           contentContainerStyle={{ padding: SPACING.lg, paddingTop: SPACING.sm, gap: 12, paddingBottom: 120 }}
-          keyboardShouldPersistTaps="handled" initialNumToRender={8} maxToRenderPerBatch={8} windowSize={7} removeClippedSubviews
+          keyboardShouldPersistTaps="handled" initialNumToRender={8} maxToRenderPerBatch={8} windowSize={7}
           renderItem={({ item }) => ('spacer' in item ? <View style={{ flex: 1 }} /> : grid ? <View style={{ flex: 1 }}><WritingCard w={item} grid /></View> : <WritingCard w={item} />)}
         />
       )}
