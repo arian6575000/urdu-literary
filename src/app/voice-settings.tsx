@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
+import { useTheme } from '../hooks/useTheme';
 import { Linking } from 'react-native';
 import { router } from 'expo-router';
-import { COLORS } from '../constants/theme';
+
 import { S } from '../constants/strings';
 import { useSettings } from '../stores/settings';
 import { getProxyToken, setProxyToken } from '../services/privacy/lock';
@@ -10,6 +11,7 @@ import { Button, Card, Chip, Field, Icon, Muted, Row, Screen, SectionTitle, UTex
 
 // Screen 08 — engine selection (the UrduSpeechProvider that the voice screen uses)
 export default function VoiceSettings() {
+  const { c } = useTheme();
   const st = useSettings();
   const [url, setUrl] = useState(st.proxyUrl);
   const [token, setToken] = useState('');
@@ -29,13 +31,13 @@ export default function VoiceSettings() {
       </Row>
       <Muted>{S.langHint}</Muted>
       <Card style={{ gap: 6 }}>
-        <Row gap={8}><Icon name="phone-portrait-outline" size={20} color={COLORS.primary} /><UText size={17} color={COLORS.primary}>{S.engineDevice}</UText></Row>
-        <UText size={14} color={COLORS.muted} spacing={1.8}>اردو (ur-PK) کی لائیو پہچان، ساتھ ساتھ عارضی متن، مفت۔ درستی فون کی گوگل آواز سروس پر منحصر ہے؛ آف لائن کے لیے فون کی ترتیبات میں اردو آواز کا پیک ڈاؤن لوڈ کریں۔</UText>
+        <Row gap={8}><Icon name="phone-portrait-outline" size={20} color={c.primary} /><UText size={17} color={c.primary}>{S.engineDevice}</UText></Row>
+        <UText size={14} color={c.muted} spacing={1.8}>اردو (ur-PK) کی لائیو پہچان، ساتھ ساتھ عارضی متن، مفت۔ درستی فون کی گوگل آواز سروس پر منحصر ہے؛ آف لائن کے لیے فون کی ترتیبات میں اردو آواز کا پیک ڈاؤن لوڈ کریں۔</UText>
         <Button small variant="ghost" label="فون کی آواز کی ترتیبات" onPress={() => Linking.openSettings()} />
       </Card>
       <Card style={{ gap: 8 }}>
-        <Row gap={8}><Icon name="cloud-outline" size={20} color={COLORS.primary} /><UText size={17} color={COLORS.primary}>{S.engineCloud}</UText></Row>
-        <UText size={14} color={COLORS.muted} spacing={1.8}>آپ کا اپنا سرور (فولڈر server) آواز کو گوگل کلاؤڈ اسپیچ یا وِسپر سے متن بناتا ہے۔ چابی صرف سرور پر رہتی ہے، ایپ میں نہیں۔ یہ طریقہ جملہ جملہ متن دیتا ہے اور انٹرنیٹ مانگتا ہے۔</UText>
+        <Row gap={8}><Icon name="cloud-outline" size={20} color={c.primary} /><UText size={17} color={c.primary}>{S.engineCloud}</UText></Row>
+        <UText size={14} color={c.muted} spacing={1.8}>آپ کا اپنا سرور (فولڈر server) آواز کو گوگل کلاؤڈ اسپیچ یا وِسپر سے متن بناتا ہے۔ چابی صرف سرور پر رہتی ہے، ایپ میں نہیں۔ یہ طریقہ جملہ جملہ متن دیتا ہے اور انٹرنیٹ مانگتا ہے۔</UText>
         <Field label={S.proxyUrl} value={url} onChangeText={setUrl} placeholder="https://your-server.example.com" ltr autoCapitalize="none" keyboardType="url" hint={S.proxyHint} />
         <Field label="Access token" value={token} onChangeText={setToken} ltr autoCapitalize="none" secureTextEntry />
         <Button label={S.save} onPress={saveCloud} />

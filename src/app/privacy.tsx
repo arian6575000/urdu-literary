@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { useTheme } from '../hooks/useTheme';
 import { Linking } from 'react-native';
-import { COLORS } from '../constants/theme';
+
 import { S } from '../constants/strings';
 import { biometricAvailable, biometricEnabled, checkPin, hasPin, removePin, setBiometric, setPin } from '../services/privacy/lock';
 import { deleteAllVoiceData } from '../database/repositories/voice';
@@ -10,6 +11,7 @@ import { Button, Card, Divider, Field, ListRow, Muted, Screen, SectionTitle, She
 
 // Screen 20 — privacy & security
 export default function Privacy() {
+  const { c } = useTheme();
   const [pin, setHasPin] = useState(false);
   const [bio, setBio] = useState(false);
   const [bioOk, setBioOk] = useState(false);
@@ -44,7 +46,7 @@ export default function Privacy() {
       </Card>
       <SectionTitle>{S.privacy}</SectionTitle>
       <Card><SwitchRow icon="eye-off-outline" label={S.screenSecurity} desc="اسکرین شاٹ اور ریکارڈنگ بند، ریسنٹ ایپس میں پردہ" value={screenSecurity} onChange={(x) => useSettings.getState().set('screenSecurity', x)} /></Card>
-      <Card style={{ gap: 6 }}><UText size={16} color={COLORS.primary}>{S.engineCloud}</UText><UText size={14} color={COLORS.muted} spacing={1.8}>{S.cloudPrivacy}</UText></Card>
+      <Card style={{ gap: 6 }}><UText size={16} color={c.primary}>{S.engineCloud}</UText><UText size={14} color={c.muted} spacing={1.8}>{S.cloudPrivacy}</UText></Card>
       <Button variant="danger" icon="trash-outline" label={S.deleteTranscripts} onPress={wipeVoice} />
       <Button variant="ghost" icon="settings-outline" label={S.permissions} onPress={() => Linking.openSettings()} />
       <Muted>مائیکروفون کی اجازت صرف آواز سے لکھتے وقت مانگی جاتی ہے۔</Muted>

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { COLORS } from '../constants/theme';
+import { useTheme } from '../hooks/useTheme';
+
 import { S } from '../constants/strings';
 import { getDb } from '../database/db';
 import { integrityCheck } from '../database/init';
@@ -10,6 +11,7 @@ import { Button, Card, Muted, Screen, SectionTitle, UText } from '../components/
 
 // Screen 19 — backup & restore
 export default function Backup() {
+  const { c } = useTheme();
   const [busy, setBusy] = useState<string | null>(null);
   const [report, setReport] = useState<string>('');
   const run = async (k: string, fn: () => Promise<void>) => { setBusy(k); try { await fn(); } catch { toast(S.exportFailed, 'error'); } finally { setBusy(null); } };
@@ -33,7 +35,7 @@ export default function Backup() {
       <Muted>{S.restoreConfirm}</Muted>
       <SectionTitle>{S.integrity}</SectionTitle>
       <Button icon="shield-checkmark-outline" variant="ghost" label={S.integrity} loading={busy === 'check'} onPress={check} />
-      {report ? <Card><UText size={16} color={COLORS.primary}>{report}</UText></Card> : null}
+      {report ? <Card><UText size={16} color={c.primary}>{report}</UText></Card> : null}
     </Screen>
   );
 }
