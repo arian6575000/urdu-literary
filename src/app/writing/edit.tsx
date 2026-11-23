@@ -2,14 +2,15 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ScrollView, TextInput, TextInputSelectionChangeEvent, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { CATEGORIES, catById, isPoetry } from '../../constants/categories';
-import { COLORS, FONT, RADII, SPACING, lineHeightFor } from '../../constants/theme';
+import { FONT, SPACING, lineHeightFor } from '../../constants/theme';
+import { useTheme } from '../../hooks/useTheme';
 import { S } from '../../constants/strings';
 import { createWriting, getWriting, updateWriting } from '../../database/repositories/writings';
 import { getSetting, setSetting } from '../../database/repositories/settings';
 import { useSettings } from '../../stores/settings';
 import { toast, useUi } from '../../stores/ui';
 import { countChars, countWords, urduDigits } from '../../utils/text';
-import { Chip, Field, HScroll, Icon, IconButton, Muted, Row, Screen, Sheet, UText } from '../../components/design-system';
+import { Chip, Field, HScroll, Icon, IconButton, Muted, Row, Screen, Segmented, Sheet, Slider, UText } from '../../components/design-system';
 import { CorrectionSheet } from '../../components/CorrectionSheet';
 import { VoiceWriter } from '../../features/voice/VoiceWriter';
 
@@ -18,6 +19,7 @@ type SaveState = 'saved' | 'saving' | 'unsaved';
 
 // Screen 06 — Advanced Urdu Writing Editor
 export default function Editor() {
+  const { c } = useTheme();
   const params = useLocalSearchParams<{ id?: string; cat?: string }>();
   const st = useSettings();
   const idRef = useRef<string | null>(params.id ?? null);
@@ -33,6 +35,8 @@ export default function Editor() {
   const [showVoice, setShowVoice] = useState(false);
   const [showFix, setShowFix] = useState(false);
   const [showCat, setShowCat] = useState(false);
+  const [showStyle, setShowStyle] = useState(false);
+  const [align, setAlign] = useState<'right' | 'center'>(st.readerAlign);
   const sel = useRef({ start: 0, end: 0 });
   const bodyRef = useRef<React.ComponentRef<typeof TextInput>>(null);
 
@@ -126,39 +130,46 @@ export default function Editor() {
     <Screen
       title={cat.name} back scroll={false} pad={false}
       right={<Row gap={0}>
-        <Row gap={4} style={{ paddingHorizontal: 6 }}><Icon name={save === 'saved' ? 'checkmark-circle' : 'cloud-upload-outline'} size={16} color={save === 'saved' ? COLORS.success : COLORS.muted} /><Muted>{stLabel}</Muted></Row>
-        <IconButton icon="save-outline" color={COLORS.primary} onPress={manualSave} label={S.save} />
+        <Row gap={4} style={{ paddingHorizontal: 6 }}><Icon name={save === 'saved' ? 'checkmark-circle' : 'cloud-upload-outline'} size={16} color={save === 'saved' ? c.success : c.muted} /><Muted>{stLabel}</Muted></Row>
+        <IconButton icon="save-outline" color={c.primary} onPress={manualSave} label={S.save} />
       </Row>}
       footer={
-        <View style={{ backgroundColor: COLORS.surface, borderTopWidth: 1, borderTopColor: COLORS.line }}>
+        <View style={{ backgroundColor: c.surface, borderTopWidth: 1, borderTopColor: c.line }}>
           <Row style={{ justifyContent: 'space-between', paddingHorizontal: 14, paddingTop: 4 }}>
             <Muted>{urduDigits(countWords(content))} {S.words} · {urduDigits(countChars(content))} {S.chars}</Muted>
-            <Row gap={2}><IconButton icon="remove" size={18} onPress={() => adjust('size', -2)} label={S.fontSize} /><UText size={12} color={COLORS.muted}>{S.fontSize}</UText><IconButton icon="add" size={18} onPress={() => adjust('size', 2)} label={S.fontSize} /></Row>
+            <Row gap={2}><IconButton icon="remove" size={18} onPress={() => adjust('size', -2)} label={S.fontSize} /><UText size={12} color={c.muted}>{S.fontSize}</UText><IconButton icon="add" size={18} onPress={() => adjust('size', 2)} label={S.fontSize} /></Row>
           </Row>
           <HScroll gap={2}>
-            <IconButton icon="mic" color={COLORS.white} bg={COLORS.primary} onPress={() => setShowVoice(true)} label={S.voiceInput} />
-            <IconButton icon="arrow-undo-outline" onPress={undo} color={canUndo ? COLORS.text : COLORS.line} label={S.undo} />
-            <IconButton icon="arrow-redo-outline" onPress={redo} color={canRedo ? COLORS.text : COLORS.line} label={S.redo} />
+            <IconButton icon="mic" color={c.white} bg={c.primary} onPress={() => setShowVoice(true)} label={S.voiceInput} />
+            <IconButton icon="arrow-undo-outline" onPress={undo} color={canUndo ? c.text : c.line} label={S.undo} />
+            <IconButton icon="arrow-redo-outline" onPress={redo} color={canRedo ? c.text : c.line} label={S.redo} />
             {isPoetry(category) ? <IconButton icon="return-down-back-outline" onPress={() => insertAtCursor('\n\n')} label={S.couplet} /> : null}
             <IconButton icon="color-wand-outline" onPress={() => { pushHist(); setShowFix(true); }} label={S.checkText} />
             <IconButton icon="reorder-three-outline" onPress={() => adjust('spacing', 0.2)} label={S.lineSpacing} />
             <IconButton icon="reorder-two-outline" onPress={() => adjust('spacing', -0.2)} label={S.lineSpacing} />
+            <IconButton icon="options-outline" onPress={() => setShowStyle(true)} label={S.fontSizeSet} />
             <IconButton icon="apps-outline" onPress={() => setShowCat(true)} label={S.category} />
           </HScroll>
         </View>
       }>
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: SPACING.lg, gap: 6, paddingBottom: 40 }}>
         <TextInput
-          value={title} onChangeText={onTitle} placeholder={S.titleHint} placeholderTextColor={COLORS.muted} textAlign="right" returnKeyType="next" onSubmitEditing={() => bodyRef.current?.focus()}
-          style={{ fontFamily: FONT, fontSize: 30, lineHeight: lineHeightFor(30, 1.8), color: COLORS.primary, writingDirection: 'rtl', paddingVertical: 4 }} />
-        <View style={{ height: 2, backgroundColor: COLORS.secondarySoft, borderRadius: 1 }} />
+          value={title} onChangeText={onTitle} placeholder={S.titleHint} placeholderTextColor={c.muted} textAlign="right" returnKeyType="next" onSubmitEditing={() => bodyRef.current?.focus()}
+          style={{ fontFamily: FONT, fontSize: 30, lineHeight: lineHeightFor(30, 1.8), color: c.primary, writingDirection: 'rtl', paddingVertical: 4 }} />
+        <View style={{ height: 2, backgroundColor: c.secondarySoft, borderRadius: 1 }} />
         <TextInput
-          ref={bodyRef} value={content} onChangeText={onBody} onSelectionChange={onSelection} multiline placeholder={S.bodyHint} placeholderTextColor={COLORS.muted} textAlign="right" textAlignVertical="top" scrollEnabled={false}
-          style={{ fontFamily: FONT, fontSize: size, lineHeight: lineHeightFor(size, spacing), color: COLORS.text, writingDirection: 'rtl', minHeight: 320, paddingTop: 8 }} />
+          ref={bodyRef} value={content} onChangeText={onBody} onSelectionChange={onSelection} multiline placeholder={S.bodyHint} placeholderTextColor={c.muted} textAlign={align} textAlignVertical="top" scrollEnabled={false}
+          style={{ fontFamily: FONT, fontSize: size, lineHeight: lineHeightFor(size, spacing), color: c.text, writingDirection: 'rtl', minHeight: 320, paddingTop: 8 }} />
       </ScrollView>
 
       <Sheet visible={showVoice} onClose={() => setShowVoice(false)} title={S.voiceTitle} tall>
         <VoiceWriter embedded category={category} onInsert={(text, orig) => { insertAtCursor(text); setOriginal((o) => (o ? o + '\n' : '') + orig); setShowVoice(false); }} />
+      </Sheet>
+      <Sheet visible={showStyle} onClose={() => setShowStyle(false)} title={S.fontSizeSet}>
+        <Slider label={S.fontSize} value={size} min={16} max={44} step={1} onChange={(v) => { setSize(v); st.set('editorSize', v); }} format={(v) => urduDigits(v)} />
+        <Slider label={S.lineSpacing} value={spacing} min={1.4} max={3.2} step={0.1} onChange={(v) => { setSpacing(v); st.set('editorSpacing', v); }} format={(v) => urduDigits(+v.toFixed(1))} />
+        <Segmented<'right' | 'center'> value={align} onChange={(a) => { setAlign(a); st.set('readerAlign', a); }} options={[{ id: 'right', label: S.alignRight }, { id: 'center', label: S.alignCenter }]} />
+        <Muted>{S.autoSave}</Muted>
       </Sheet>
       <CorrectionSheet visible={showFix} text={content} onApply={(t) => { pushHist(); onBody(t); pushHist(); }} onClose={() => setShowFix(false)} />
       <Sheet visible={showCat} onClose={() => setShowCat(false)} title={S.category}>
@@ -168,4 +179,3 @@ export default function Editor() {
     </Screen>
   );
 }
-void RADII;
