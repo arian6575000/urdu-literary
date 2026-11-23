@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { useTheme } from '../hooks/useTheme';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { COLORS, RADII, SHADOW } from '../constants/theme';
+import {RADII, SHADOW} from '../constants/theme';
 import { S } from '../constants/strings';
 import { Icon, UText, Row } from './design-system';
 import { biometricEnabled, biometricUnlock, checkPin, lockState, removePin } from '../services/privacy/lock';
@@ -9,6 +10,7 @@ import { wipeAllWritings } from '../database/repositories/writings';
 import { confirmDialog, useUi } from '../stores/ui';
 
 export function LockScreen({ onUnlock }: { onUnlock: () => void }) {
+  const { c } = useTheme();
   const [pin, setPin] = useState('');
   const [fails, setFails] = useState(0);
   const [msg, setMsg] = useState('');
@@ -43,23 +45,23 @@ export function LockScreen({ onUnlock }: { onUnlock: () => void }) {
   };
   const keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'bio', '0', 'back'];
   return (
-    <View style={[StyleSheet.absoluteFill, { backgroundColor: COLORS.bg, zIndex: 100 }]}>
+    <View style={[StyleSheet.absoluteFill, { backgroundColor: c.bg, zIndex: 100 }]}>
       <SafeAreaView style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-        <View style={{ width: '100%', maxWidth: 340, backgroundColor: COLORS.surface, borderRadius: RADII.xl, padding: 24, alignItems: 'center', ...SHADOW }}>
-          <View style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: COLORS.primarySoft, alignItems: 'center', justifyContent: 'center' }}><Icon name="lock-closed" size={28} color={COLORS.primary} /></View>
-          <UText size={20} color={COLORS.primary} center style={{ marginTop: 8 }}>{S.enterPin}</UText>
+        <View style={{ width: '100%', maxWidth: 340, backgroundColor: c.surface, borderRadius: RADII.xl, padding: 24, alignItems: 'center', ...SHADOW }}>
+          <View style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: c.primarySoft, alignItems: 'center', justifyContent: 'center' }}><Icon name="lock-closed" size={28} color={c.primary} /></View>
+          <UText size={20} color={c.primary} center style={{ marginTop: 8 }}>{S.enterPin}</UText>
           <Row gap={14} style={{ marginVertical: 14 }}>
-            {[0, 1, 2, 3].map((i) => <View key={i} style={{ width: 14, height: 14, borderRadius: 7, borderWidth: 2, borderColor: COLORS.primary, backgroundColor: i < pin.length ? COLORS.primary : 'transparent' }} />)}
+            {[0, 1, 2, 3].map((i) => <View key={i} style={{ width: 14, height: 14, borderRadius: 7, borderWidth: 2, borderColor: c.primary, backgroundColor: i < pin.length ? c.primary : 'transparent' }} />)}
           </Row>
-          <UText size={14} color={COLORS.danger} center style={{ minHeight: 34 }}>{wait > 0 ? S.pinWait.replace('{n}', String(wait)) : msg}</UText>
+          <UText size={14} color={c.danger} center style={{ minHeight: 34 }}>{wait > 0 ? S.pinWait.replace('{n}', String(wait)) : msg}</UText>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', width: 252, gap: 12, justifyContent: 'center' }}>
             {keys.map((k) => (
-              <Pressable key={k} disabled={k === 'bio' && !bio} onPress={() => (k === 'bio' ? tryBio() : press(k))} style={({ pressed }) => [{ width: 72, height: 56, borderRadius: 18, backgroundColor: COLORS.primarySoft, alignItems: 'center', justifyContent: 'center', opacity: k === 'bio' && !bio ? 0 : 1 }, pressed && { backgroundColor: 'rgba(23,76,58,0.22)' }]}>
-                {k === 'back' ? <Icon name="backspace-outline" size={24} color={COLORS.muted} /> : k === 'bio' ? <Icon name="finger-print" size={26} color={COLORS.primary} /> : <UText size={26} center spacing={1.3}>{k}</UText>}
+              <Pressable key={k} disabled={k === 'bio' && !bio} onPress={() => (k === 'bio' ? tryBio() : press(k))} style={({ pressed }) => [{ width: 72, height: 56, borderRadius: 18, backgroundColor: c.primarySoft, alignItems: 'center', justifyContent: 'center', opacity: k === 'bio' && !bio ? 0 : 1 }, pressed && { backgroundColor: 'rgba(106,61,209,0.28)' }]}>
+                {k === 'back' ? <Icon name="backspace-outline" size={24} color={c.muted} /> : k === 'bio' ? <Icon name="finger-print" size={26} color={c.primary} /> : <UText size={26} center spacing={1.3}>{k}</UText>}
               </Pressable>
             ))}
           </View>
-          {fails >= 5 ? <Pressable onPress={forgot} style={{ marginTop: 14 }}><UText size={14} color={COLORS.danger}>{S.forgotPin}</UText></Pressable> : null}
+          {fails >= 5 ? <Pressable onPress={forgot} style={{ marginTop: 14 }}><UText size={14} color={c.danger}>{S.forgotPin}</UText></Pressable> : null}
         </View>
       </SafeAreaView>
     </View>

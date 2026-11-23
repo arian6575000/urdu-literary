@@ -9,7 +9,7 @@ import * as ScreenCapture from 'expo-screen-capture';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useFonts } from 'expo-font';
-import { COLORS } from '../constants/theme';
+import { useTheme } from '../hooks/useTheme';
 import { DB_NAME } from '../constants/app';
 import { S } from '../constants/strings';
 import { fromExpo } from '../database/expoAdapter';
@@ -32,18 +32,20 @@ try {
 
 /** expo-router renders this instead of a white screen / app exit when a screen throws while rendering. */
 export function ErrorBoundary({ error, retry }: { error: Error; retry: () => void }) {
+  const { c } = useTheme();
   logEvent('render-error', `${error?.name}: ${error?.message}\n${String(error?.stack ?? '').split('\n').slice(0, 6).join('\n')}`);
   return (
-    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 12, backgroundColor: COLORS.bg }}>
-      <UText size={24} color={COLORS.primary} center>{S.crashTitle}</UText>
+    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 12, backgroundColor: c.bg }}>
+      <UText size={24} color={c.primary} center>{S.crashTitle}</UText>
       <UText size={16} center>{S.crashText}</UText>
-      <Text selectable style={{ color: COLORS.muted, fontSize: 12, textAlign: 'center' }}>{String(error?.message ?? '').slice(0, 200)}</Text>
+      <Text selectable style={{ color: c.muted, fontSize: 12, textAlign: 'center' }}>{String(error?.message ?? '').slice(0, 200)}</Text>
       <Button label={S.retry} onPress={retry} />
     </View>
   );
 }
 
 export default function RootLayout() {
+  const { c, dark } = useTheme();
   const [fontsLoaded, fontError] = useFonts({ AlviNastaleeq: require('../../assets/fonts/AlviNastaleeq.ttf') });
   const [dbReady, setDbReady] = useState(false);
   const [dbError, setDbError] = useState<string | null>(null);
@@ -82,15 +84,15 @@ export default function RootLayout() {
   const unlock = useCallback(() => setLocked(false), []);
 
   if (dbError) {
-    return <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, backgroundColor: COLORS.bg }}><Text style={{ color: COLORS.danger, fontSize: 18, textAlign: 'center' }}>{S.dbOpenFail}</Text><Text style={{ marginTop: 8, color: COLORS.muted, textAlign: 'center' }}>{dbError}</Text></View>;
+    return <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, backgroundColor: c.bg }}><Text style={{ color: c.danger, fontSize: 18, textAlign: 'center' }}>{S.dbOpenFail}</Text><Text style={{ marginTop: 8, color: c.muted, textAlign: 'center' }}>{dbError}</Text></View>;
   }
-  if (!ready) return <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.bg }}><ActivityIndicator color={COLORS.primary} /></View>;
+  if (!ready) return <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: c.bg }}><ActivityIndicator color={c.primary} /></View>;
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <StatusBar style="dark" />
-        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: COLORS.bg }, animation: 'slide_from_right' }} />
+        <StatusBar style={dark ? 'light' : 'dark'} />
+        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: c.bg }, animation: 'slide_from_right' }} />
         {locked ? <LockScreen onUnlock={unlock} /> : null}
         <OverlayHost />
       </SafeAreaProvider>

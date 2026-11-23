@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
+import { useTheme } from '../hooks/useTheme';
 import { Pressable, Share, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { COLORS, RADII } from '../constants/theme';
+import {RADII} from '../constants/theme';
 import { S } from '../constants/strings';
 import { catById } from '../constants/categories';
 import { listWritings } from '../database/repositories/writings';
@@ -13,6 +14,7 @@ import { Button, Field, Icon, Loading, Muted, Row, Screen, SectionTitle, SwitchR
 
 // Screens 15 + 16 — PDF export and sharing, for one writing or a whole collection
 export default function ExportScreen() {
+  const { c } = useTheme();
   const { ids } = useLocalSearchParams<{ ids?: string }>();
   const { data, loading } = useQuery(() => listWritings({ sort: 'oldest' }), []);
   const [sel, setSel] = useState<Set<string>>(new Set((ids ?? '').split(',').filter(Boolean)));
@@ -33,8 +35,8 @@ export default function ExportScreen() {
     <Screen title={S.exportTitle} back>
       <SectionTitle right={<Button small variant="ghost" label={sel.size === (data?.length ?? 0) ? S.cancel : S.all} onPress={() => setSel(sel.size === (data?.length ?? 0) ? new Set() : new Set((data ?? []).map((w) => w.id)))} />}>{S.selectWritings}</SectionTitle>
       {loading && !data ? <Loading /> : (data ?? []).map((w) => (
-        <Pressable key={w.id} onPress={() => toggle(w.id)} style={{ flexDirection: 'row-reverse', alignItems: 'center', gap: 10, backgroundColor: sel.has(w.id) ? COLORS.primarySoft : COLORS.surface, borderRadius: RADII.md, padding: 12, borderWidth: 1, borderColor: sel.has(w.id) ? COLORS.primary : COLORS.line }}>
-          <Icon name={sel.has(w.id) ? 'checkbox' : 'square-outline'} size={24} color={COLORS.primary} />
+        <Pressable key={w.id} onPress={() => toggle(w.id)} style={{ flexDirection: 'row-reverse', alignItems: 'center', gap: 10, backgroundColor: sel.has(w.id) ? c.primarySoft : c.surface, borderRadius: RADII.md, padding: 12, borderWidth: 1, borderColor: sel.has(w.id) ? c.primary : c.line }}>
+          <Icon name={sel.has(w.id) ? 'checkbox' : 'square-outline'} size={24} color={c.primary} />
           <View style={{ flex: 1 }}><UText size={17} lines={1}>{w.title || S.untitled}</UText><Muted>{catById(w.category_id).name}</Muted></View>
         </Pressable>
       ))}
