@@ -1,6 +1,6 @@
 // Card-editor Urdu strings (kept next to the feature; the rest of the app uses constants/strings.ts).
 export const CS = {
-  title: 'کارڈ ڈزائنر', tText: 'متن', tDesign: 'ڈیزائن', tColor: 'رنگ', tBg: 'پس منظر', tDecor: 'سجاوٹ', tImage: 'تصویر',
+  title: 'کارڈ ڈیزائنر', tText: 'متن', tDesign: 'ڈیزائن', tColor: 'رنگ', tBg: 'پس منظر', tDecor: 'سجاوٹ', tImage: 'تصویر',
   undo: 'واپس', redo: 'دوبارہ', save: 'محفوظ', export: 'ایکسپورٹ', reset: 'ڈیزائن ری سیٹ', fit: 'پوری کارڈ دیکھیں', zoom: 'بڑا کر کے دیکھیں',
   body: 'کارڈ کا متن', titleF: 'عنوان', poetF: 'شاعر کا نام', showTitle: 'عنوان دکھائیں', showPoet: 'شاعر کا نام دکھائیں',
   font: 'فونٹ', size: 'حجم', lineH: 'سطروں کا فاصلہ', letterS: 'حروف کا فاصلہ', letterHint: 'نستعلیق میں زیادہ فاصلہ حروف کی جڑت بگاڑ سکتا ہے',
