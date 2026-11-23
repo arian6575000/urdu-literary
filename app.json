@@ -3,7 +3,7 @@
     "name": "اردو ادبی ڈائری",
     "slug": "urdu-literary-app",
     "scheme": "urduliterary",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "newArchEnabled": true,
@@ -29,7 +29,8 @@
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE",
         "android.permission.SYSTEM_ALERT_WINDOW"
-      ]
+      ],
+      "softwareKeyboardLayoutMode": "resize"
     },
     "plugins": [
       "expo-router",
@@ -59,6 +60,25 @@
           "microphonePermission": "آواز سے لکھنے کے لیے مائیکروفون درکار ہے",
           "speechRecognitionPermission": "اردو آواز پہچاننے کے لیے اجازت درکار ہے"
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "کارڈ کے پس منظر کے لیے تصویر چننے کی اجازت درکار ہے",
+          "cameraPermission": false,
+          "microphonePermission": false
+        }
+      ],
+      [
+        "expo-media-library",
+        {
+          "savePhotosPermission": "تیار کارڈ گیلری میں محفوظ کرنے کے لیے اجازت درکار ہے",
+          "photosPermission": "تیار کارڈ گیلری میں محفوظ کرنے کے لیے اجازت درکار ہے",
+          "granularPermissions": [
+            "photo"
+          ],
+          "isAccessMediaLocationEnabled": false
+        }
       ]
     ],
     "extra": {
@@ -66,6 +86,7 @@
     },
     "experiments": {
       "typedRoutes": false
-    }
+    },
+    "userInterfaceStyle": "automatic"
   }
 }
