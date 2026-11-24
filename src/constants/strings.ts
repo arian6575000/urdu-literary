@@ -47,7 +47,7 @@ export const S = {
   confirmDelete: 'کیا آپ یہ تحریر ہمیشہ کے لیے حذف کرنا چاہتے ہیں؟', cancel: 'منسوخ', ok: 'ٹھیک ہے', yes: 'ہاں', no: 'نہیں', close: 'بند کریں',
   versions: 'پرانے نسخے', restoreVersion: 'یہ نسخہ بحال کریں', noVersions: 'ابھی کوئی پرانا نسخہ نہیں',
   // card
-  cardDesigner: 'کارڈ ڈزائنر', background: 'پس منظر', textSize: 'متن کا حجم', textColor: 'متن کا رنگ', alignment: 'ترتیب', spacing: 'فاصلہ',
+  cardDesigner: 'کارڈ ڈیزائنر', background: 'پس منظر', textSize: 'متن کا حجم', textColor: 'متن کا رنگ', alignment: 'ترتیب', spacing: 'فاصلہ',
   alignRight: 'دائیں', alignCenter: 'درمیان', template: 'سانچہ', saveCard: 'تصویر محفوظ کریں', shareCard: 'تصویر شیئر کریں', formatPng: 'PNG', formatJpg: 'JPG',
   cardTooLong: 'کارڈ کے لیے چند اشعار / سطریں منتخب کریں۔', pickLines: 'کارڈ کے لیے متن',
   // export
@@ -92,7 +92,7 @@ export const S = {
   voiceStudio: 'آواز سے لکھیں', recording: 'ریکارڈنگ', cloudNote: 'یہ طریقہ بول چکنے کے بعد جملہ جملہ متن دیتا ہے، ساتھ ساتھ نہیں۔', startHint: 'بولنے کے لیے بڑے مائیک کو دبائیں', stopSave: 'ختم کریں اور محفوظ کریں', editTranscript: 'متن میں ترمیم کریں',
   secLook: 'ظاہری شکل', secFont: 'اردو فونٹ', secVoice: 'آواز کی ترتیبات', secBackup: 'بیک اپ', secPrivacy: 'رازداری', secAbout: 'ایپ کی معلومات', secShortcuts: 'جلدی رسائی',
   themeLight: 'روشن', themeDark: 'گہرا', themeSystem: 'فون کے مطابق', themeMode: 'تھیم', themeHint: 'روشن یا گہرا انداز منتخب کریں',
-  fontNote: 'الوی نستعلیق تمام تحریروں کا بنیادی فونٹ ہے۔ کارڈ ڈزائنر میں مزید فونٹ ملتے ہیں۔', fontSizeSet: 'پڑھنے اور لکھنے کا انداز',
+  fontNote: 'الوی نستعلیق تمام تحریروں کا بنیادی فونٹ ہے۔ کارڈ ڈیزائنر میں مزید فونٹ ملتے ہیں۔', fontSizeSet: 'پڑھنے اور لکھنے کا انداز',
   ob4t: 'مجموعے اور کارڈ', ob4d: 'تحریروں کو مجموعوں میں ترتیب دیں اور خوبصورت شعری کارڈ بنا کر شیئر کریں۔',
   pickCardT: 'کارڈ کس تحریر کا بنانا ہے؟', align2: 'ترتیب', showMore: 'مزید دیکھیں', openLib: 'تحریریں کھولیں',
 };
