@@ -17,7 +17,7 @@ import * as St from '../src/database/repositories/settings';
   assert.equal((await db.getAllAsync('SELECT * FROM writing_categories')).length, 9);
 
   const a = await W.createWriting({ title: 'غزل ایک', content: 'دلِ ناداں تجھے ہوا کیا ہے\nآخر اس درد کی دوا کیا ہے', category_id: 'ghazal' });
-  const b = await W.createWriting({ title: 'مضمون', content: 'زندي بہت خوبصورت ہے', category_id: 'mazmoon' });
+  const b = await W.createWriting({ title: 'مضمون', content: 'زندگي بہت خوبصورت ہے', category_id: 'mazmoon' });
   assert.equal(a.word_count, 13);
   // search ignores diacritics and Arabic/Urdu letter forms
   assert.equal((await W.listWritings({ text: 'دل ناداں' })).length, 1);
