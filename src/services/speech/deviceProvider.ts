@@ -66,6 +66,8 @@ export class DeviceSpeechProvider implements UrduSpeechProvider {
       androidIntentOptions: { EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS: 4000, EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS: 3500, EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS: 2000, EXTRA_PREFER_OFFLINE: false },
     } as any);
   }
+  /** Drop the native listeners (the provider is created once per voice screen, so leaked listeners pile up and duplicate every event). */
+  release() { this.subs.forEach((u) => { try { u(); } catch { /* ignore */ } }); this.subs = []; this.attached = false; }
   async stopRecording(): Promise<void> { ExpoSpeechRecognitionModule.stop(); }
   async pauseRecording(): Promise<void> { ExpoSpeechRecognitionModule.stop(); } // stop() flushes the pending text as a final result
   async resumeRecording(): Promise<void> { await this.startRecording(this.lastOptions); }

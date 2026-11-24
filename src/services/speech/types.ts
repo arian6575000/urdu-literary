@@ -29,6 +29,8 @@ export interface UrduSpeechProvider {
   /** Engine finished a recognition cycle by itself (e.g. Android ends after silence). */
   onEnd(cb: () => void): Unsub;
   onVolume(cb: (level01: number) => void): Unsub;
+  /** Optional: detach native listeners when the screen using this provider goes away. */
+  release?(): void;
 }
 
 /** 'transient' = a recoverable engine hiccup (busy, client error): the controller retries instead of failing. */
