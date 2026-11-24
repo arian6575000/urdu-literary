@@ -1,7 +1,7 @@
 // Pure text helpers (no React Native imports so they run in node tests).
 
 /** Urdu/Arabic combining marks (zabar, zer, pesh, shadda...) — stripped for search only, never from stored text. */
-const MARKS = /[ؐ-ًؚ-ٰٟۖ-ۭ‌‍‎‏]/g;
+const MARKS = /[ؐ-ًؚ-ٰٟۖ-ۭ‌‍‎‏]/g;
 
 /** Normalise Urdu text for searching: remove diacritics and unify look-alike letters (Arabic ي/ك/ه vs Urdu ی/ک/ہ). */
 export function normalizeUrdu(s: string): string {
