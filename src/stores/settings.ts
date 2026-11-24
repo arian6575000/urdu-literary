@@ -10,12 +10,15 @@ export interface SettingsState {
   defaultAuthor: string;
   autoSave: boolean;
   screenSecurity: boolean;
+  themeMode: 'light' | 'dark' | 'system';
+  gridView: boolean;
+  recentSearches: string[];
   editorSize: number; editorSpacing: number; readerSize: number; readerSpacing: number; readerAlign: 'center' | 'right';
   load(): Promise<void>;
   set<K extends keyof Omit<SettingsState, 'load' | 'set' | 'loaded'>>(key: K, value: SettingsState[K]): Promise<void>;
 }
 
-const DEFAULTS = { onboarded: false, engine: 'device' as const, speechLang: 'ur-PK' as const, proxyUrl: '', defaultAuthor: '', autoSave: true, screenSecurity: false, editorSize: 24, editorSpacing: 2.0, readerSize: 26, readerSpacing: 2.1, readerAlign: 'right' as const };
+const DEFAULTS = { onboarded: false, engine: 'device' as const, speechLang: 'ur-PK' as const, proxyUrl: '', defaultAuthor: '', autoSave: true, screenSecurity: false, themeMode: 'system' as 'light' | 'dark' | 'system', gridView: false, recentSearches: [] as string[], editorSize: 24, editorSpacing: 2.0, readerSize: 26, readerSpacing: 2.1, readerAlign: 'right' as const };
 
 export const useSettings = create<SettingsState>((setState, get) => ({
   loaded: false, ...DEFAULTS,

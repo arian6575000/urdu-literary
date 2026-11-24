@@ -1,7 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Linking, Pressable, ScrollView, TextInput, View } from 'react-native';
+import { Animated, Easing, Linking, Pressable, ScrollView, TextInput, View } from 'react-native';
 import { router } from 'expo-router';
-import { COLORS, FONT, RADII, SHADOW, lineHeightFor } from '../../constants/theme';
+import { FONT, RADII, SHADOW, lineHeightFor } from '../../constants/theme';
+import { useTheme } from '../../hooks/useTheme';
+import { urduDigits } from '../../utils/text';
 import { S } from '../../constants/strings';
 import { VoiceSessionController, type Snapshot } from '../../services/speech/sessionController';
 import { createProvider } from '../../services/speech/factory';
@@ -28,6 +30,7 @@ interface Props { embedded?: boolean; category?: string; onInsert?: (text: strin
  * Confirmed text is solid, tentative (unstable) text is shown lighter and replaced — never appended — on each update.
  */
 export function VoiceWriter({ embedded, category = 'free', onInsert }: Props) {
+  const { c } = useTheme();
   const engine = useSettings((s) => s.engine);
   const proxyUrl = useSettings((s) => s.proxyUrl);
   const author = useSettings((s) => s.defaultAuthor);
@@ -45,6 +48,11 @@ export function VoiceWriter({ embedded, category = 'free', onInsert }: Props) {
   const sessionId = useRef<string | null>(null);
   const scrollRef = useRef<React.ComponentRef<typeof ScrollView>>(null);
   const prevState = useRef(snap.state);
+  const [secs, setSecs] = useState(0);
+  const pulse = useRef(new Animated.Value(0)).current;
+  useEffect(() => { Animated.timing(pulse, { toValue: snap.state === 'listening' ? Math.min(1, snap.level * 1.6) : 0, duration: 140, easing: Easing.out(Easing.quad), useNativeDriver: true }).start(); }, [snap.level, snap.state, pulse]);
+  useEffect(() => { if (snap.state !== 'listening') return; const id = setInterval(() => setSecs((x) => x + 1), 1000); return () => clearInterval(id); }, [snap.state]);
+  const mmss = `${urduDigits(String(Math.floor(secs / 60)).padStart(2, '0'))}:${urduDigits(String(secs % 60).padStart(2, '0'))}`;
 
   useEffect(() => { getProxyToken().then((t) => { tokenRef.current = t; }); }, [engine]);
   useEffect(() => { if (!embedded) lastUnlinkedTranscript().then((t) => t && setRecovered(t as any)).catch(() => {}); }, [embedded]);
@@ -80,7 +88,7 @@ export function VoiceWriter({ embedded, category = 'free', onInsert }: Props) {
   useEffect(() => { if (snap.state === 'stopped' || snap.state === 'error') { const raw = snap.full.trim(); if (raw && sessionId.current) saveTranscript(sessionId.current, [...origParts].join(' '), edited).catch(() => {}); } }, [edited, origParts, snap.state]); // eslint-disable-line
 
   const begin = useCallback(async () => {
-    if (!sessionId.current || snap.state === 'stopped') sessionId.current = await startVoiceSession(engine);
+    if (!sessionId.current || snap.state === 'stopped') { sessionId.current = await startVoiceSession(engine); setSecs(0); }
     const vocab = (await listDictionary().catch(() => [])).flatMap((d) => [d.word]);
     await ctrl.start(vocab);
   }, [ctrl, engine, snap.state]);
@@ -104,7 +112,7 @@ export function VoiceWriter({ embedded, category = 'free', onInsert }: Props) {
   return (
     <View style={{ flex: embedded ? undefined : 1, gap: 14, padding: embedded ? 0 : 16 }}>
       {recovered && !live && !finished ? (
-        <Card style={{ backgroundColor: COLORS.secondarySoft, borderColor: COLORS.secondary, gap: 8 }}>
+        <Card style={{ backgroundColor: c.secondarySoft, borderColor: c.secondary, gap: 8 }}>
           <UText size={15}>{S.draftRecovered}</UText>
           <Row gap={8}>
             <Button small label={S.apply} onPress={() => { setEdited(recovered.edited_text); setOrigParts(recovered.original_text ? [recovered.original_text] : []); sessionId.current = recovered.session_id; setRecovered(null); }} />
@@ -114,29 +122,33 @@ export function VoiceWriter({ embedded, category = 'free', onInsert }: Props) {
       ) : null}
 
       <Row style={{ justifyContent: 'space-between' }}>
-        <Chip label={engine === 'cloud' ? S.engineCloud : S.engineDevice} icon={engine === 'cloud' ? 'cloud-outline' : 'phone-portrait-outline'} onPress={() => router.push('/voice-settings')} />
-        <Muted>{status}</Muted>
+        <Row gap={6}>
+          <Chip label={S.engineDevice} icon="phone-portrait-outline" active={engine === 'device'} onPress={() => { if (!live) useSettings.getState().set('engine', 'device'); }} />
+          <Chip label={S.engineCloud} icon="cloud-outline" active={engine === 'cloud'} onPress={() => { if (!live) useSettings.getState().set('engine', 'cloud'); }} />
+        </Row>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: live ? c.accentSoft : c.tint, borderRadius: RADII.pill, paddingHorizontal: 12 }}>{live ? <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: snap.state === 'paused' ? c.gold : c.danger }} /> : null}<Muted>{live ? `${status} · ${mmss}` : status}</Muted></View>
       </Row>
 
+      {engine === 'cloud' ? <Muted>{S.cloudNote}</Muted> : null}
       <Waveform levels={levels} active={snap.state === 'listening'} />
 
       {/* transcript */}
-      <View style={{ flex: embedded ? undefined : 1, minHeight: embedded ? 220 : 160, backgroundColor: COLORS.surface, borderRadius: RADII.lg, borderWidth: 1, borderColor: COLORS.line, padding: 14, ...SHADOW }}>
+      <View style={{ flex: embedded ? undefined : 1, minHeight: embedded ? 220 : 160, backgroundColor: c.surface, borderRadius: RADII.lg, borderWidth: 1, borderColor: c.line, padding: 14, ...SHADOW }}>
         {live || !finished ? (
           <ScrollView ref={scrollRef} onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })} contentContainerStyle={{ flexGrow: 1 }}>
             {full ? (
               <Text2 confirmed={[edited, snap.confirmed].filter(Boolean).join(' ')} tentative={snap.tentative} />
-            ) : <UText size={20} color={COLORS.muted} center style={{ marginTop: 40 }}>{S.tapToSpeak}</UText>}
+            ) : <UText size={20} color={c.muted} center style={{ marginTop: 40 }}>{S.tapToSpeak}</UText>}
           </ScrollView>
         ) : (
-          <TextInput value={edited} onChangeText={setEdited} multiline textAlign="right" textAlignVertical="top" style={{ flex: 1, minHeight: 200, fontFamily: FONT, fontSize: 26, lineHeight: lineHeightFor(26, 2.0), color: COLORS.text, writingDirection: 'rtl' }} />
+          <TextInput value={edited} onChangeText={setEdited} multiline textAlign="right" textAlignVertical="top" style={{ flex: 1, minHeight: 200, fontFamily: FONT, fontSize: 26, lineHeight: lineHeightFor(26, 2.0), color: c.text, writingDirection: 'rtl' }} />
         )}
         {finished && !live ? <Muted style={{ marginTop: 4 }}>{S.edited} · {S.original}: {origParts.join(' ').length > 0 ? '✓' : '—'}</Muted> : null}
       </View>
 
       {snap.error ? (
-        <Card style={{ backgroundColor: 'rgba(179,55,47,0.08)', borderColor: COLORS.danger, gap: 8 }}>
-          <UText size={15} color={COLORS.danger}>{errText(snap.error)}</UText>
+        <Card style={{ backgroundColor: 'rgba(179,55,47,0.08)', borderColor: c.danger, gap: 8 }}>
+          <UText size={15} color={c.danger}>{errText(snap.error)}</UText>
           <Muted>({snap.error.code}{snap.error.message ? ` · ${snap.error.message.slice(0, 80)}` : ''})</Muted>
           <Row gap={8}>
             <Button small label={S.retry} onPress={begin} />
@@ -150,20 +162,23 @@ export function VoiceWriter({ embedded, category = 'free', onInsert }: Props) {
       <Row style={{ justifyContent: 'center' }} gap={22}>
         {live ? (
           <>
-            <RoundBtn icon="stop" color={COLORS.danger} label={S.stop} onPress={() => ctrl.stop()} />
+            <RoundBtn icon="stop" color={c.danger} label={S.stop} onPress={() => ctrl.stop()} />
             <Pressable accessibilityLabel={snap.state === 'paused' ? S.resume : S.pause} onPress={() => (snap.state === 'paused' ? ctrl.resume() : ctrl.pause())}
-              style={{ width: 84, height: 84, borderRadius: 42, backgroundColor: snap.state === 'paused' ? COLORS.primary : COLORS.secondary, alignItems: 'center', justifyContent: 'center', ...SHADOW }}>
-              <Icon name={snap.state === 'paused' ? 'mic' : 'pause'} size={38} color={COLORS.white} />
+              style={{ width: 84, height: 84, borderRadius: 42, backgroundColor: snap.state === 'paused' ? c.primary : c.secondary, alignItems: 'center', justifyContent: 'center', ...SHADOW }}>
+              <Icon name={snap.state === 'paused' ? 'mic' : 'pause'} size={38} color={c.white} />
             </Pressable>
             <View style={{ width: 56 }} />
           </>
         ) : (
-          <Pressable accessibilityLabel={S.tapToSpeak} onPress={begin} style={{ width: 92, height: 92, borderRadius: 46, backgroundColor: COLORS.primary, alignItems: 'center', justifyContent: 'center', borderWidth: 5, borderColor: COLORS.secondarySoft, ...SHADOW }}>
-            <Icon name="mic" size={42} color={COLORS.secondary} />
-          </Pressable>
+          <View style={{ width: 120, height: 120, alignItems: 'center', justifyContent: 'center' }}>
+            <Animated.View pointerEvents="none" style={{ position: 'absolute', width: 120, height: 120, borderRadius: 60, backgroundColor: c.accentSoft, opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.0, 0.9] }), transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.8, 1.15] }) }] }} />
+            <Pressable accessibilityRole="button" accessibilityLabel={S.tapToSpeak} onPress={begin} style={{ width: 96, height: 96, borderRadius: 48, backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center', borderWidth: 5, borderColor: c.accentSoft, ...SHADOW }}>
+              <Icon name="mic" size={44} color={c.onAccent} />
+            </Pressable>
+          </View>
         )}
       </Row>
-      <Row style={{ justifyContent: 'center' }}><Muted>{live ? (snap.state === 'paused' ? S.resume : S.pause) : finished ? '' : S.tapToSpeak}</Muted></Row>
+      <Row style={{ justifyContent: 'center' }}><Muted>{live ? (snap.state === 'paused' ? S.resume : S.pause) : finished ? S.editTranscript : S.startHint}</Muted></Row>
 
       {finished && !live ? (
         <Row wrap gap={8} style={{ justifyContent: 'center' }}>
@@ -179,14 +194,16 @@ export function VoiceWriter({ embedded, category = 'free', onInsert }: Props) {
 }
 
 function Text2({ confirmed, tentative }: { confirmed: string; tentative: string }) {
+  const { c } = useTheme();
   return (
     <UText size={26} spacing={2.1} selectable>
       <UText size={26} spacing={2.1}>{confirmed}</UText>
-      {tentative ? <UText size={26} spacing={2.1} color={COLORS.muted}>{confirmed ? ' ' : ''}{tentative}</UText> : null}
+      {tentative ? <UText size={26} spacing={2.1} color={c.muted}>{confirmed ? ' ' : ''}{tentative}</UText> : null}
     </UText>
   );
 }
 
 function RoundBtn({ icon, color, onPress, label }: { icon: any; color: string; onPress: () => void; label: string }) {
-  return <Pressable accessibilityLabel={label} onPress={onPress} style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: color, alignItems: 'center', justifyContent: 'center', alignSelf: 'center', ...SHADOW }}><Icon name={icon} size={26} color={COLORS.white} /></Pressable>;
+  const { c } = useTheme();
+  return <Pressable accessibilityLabel={label} onPress={onPress} style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: color, alignItems: 'center', justifyContent: 'center', alignSelf: 'center', ...SHADOW }}><Icon name={icon} size={26} color={c.white} /></Pressable>;
 }

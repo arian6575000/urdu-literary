@@ -10,10 +10,10 @@ import * as St from '../src/database/repositories/settings';
 (async () => {
   const db = createNodeDb();
   await initDatabase(db);
-  assert.equal((await db.getFirstAsync<any>('PRAGMA user_version'))!.user_version, 1);
+  assert.equal((await db.getFirstAsync<any>('PRAGMA user_version'))!.user_version, 2);
   await initDatabase(db); // idempotent
   const tables = (await db.getAllAsync<any>("SELECT name FROM sqlite_master WHERE type='table'")).map((t) => t.name);
-  for (const t of ['writings', 'writing_categories', 'writing_versions', 'voice_sessions', 'voice_transcripts', 'custom_dictionary', 'favorites', 'export_history', 'app_settings']) assert.ok(tables.includes(t), t);
+  for (const t of ['writings', 'writing_categories', 'writing_versions', 'voice_sessions', 'voice_transcripts', 'custom_dictionary', 'favorites', 'export_history', 'app_settings', 'collections', 'collection_items', 'card_designs']) assert.ok(tables.includes(t), t);
   assert.equal((await db.getAllAsync('SELECT * FROM writing_categories')).length, 9);
 
   const a = await W.createWriting({ title: 'غزل ایک', content: 'دلِ ناداں تجھے ہوا کیا ہے\nآخر اس درد کی دوا کیا ہے', category_id: 'ghazal' });

@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
+import { useTheme } from '../../hooks/useTheme';
 import { ScrollView, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { catById, isPoetry } from '../../constants/categories';
-import { COLORS, RADII, SPACING } from '../../constants/theme';
+import {RADII, SPACING} from '../../constants/theme';
 import { S } from '../../constants/strings';
 import { deleteWriting, getWriting, listVersions, restoreVersion, setFavorite } from '../../database/repositories/writings';
 import { useQuery } from '../../hooks/useAsync';
@@ -13,6 +14,7 @@ import { Button, Divider, Empty, Icon, IconButton, ListRow, Loading, Muted, Row,
 
 // Screen 11 — Reading mode
 export default function Reader() {
+  const { c } = useTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { readerSize, readerSpacing, readerAlign } = useSettings();
   const { data: w, loading } = useQuery(() => getWriting(id), [id]);
@@ -20,7 +22,7 @@ export default function Reader() {
   const [showVer, setShowVer] = useState(false);
   if (loading && !w) return <Screen title="" back><Loading /></Screen>;
   if (!w) return <Screen title="" back><Empty icon="alert-circle-outline" title={S.notFound} /></Screen>;
-  const c = catById(w.category_id);
+  const cat = catById(w.category_id);
   const poetry = isPoetry(w.category_id);
   const align = poetry ? 'center' : readerAlign === 'center' ? 'center' : undefined;
 
@@ -34,22 +36,22 @@ export default function Reader() {
     <Screen
       title="" back pad={false}
       right={<Row gap={0}>
-        <IconButton icon={w.is_favorite ? 'heart' : 'heart-outline'} color={w.is_favorite ? COLORS.danger : COLORS.text} onPress={fav} label={S.favorite} />
+        <IconButton icon={w.is_favorite ? 'heart' : 'heart-outline'} color={w.is_favorite ? c.danger : c.text} onPress={fav} label={S.favorite} />
         <IconButton icon="create-outline" onPress={() => router.push({ pathname: '/writing/edit', params: { id: w.id } })} label={S.edit} />
         <IconButton icon="time-outline" onPress={() => setShowVer(true)} label={S.versions} />
-        <IconButton icon="trash-outline" color={COLORS.danger} onPress={remove} label={S.delete} />
+        <IconButton icon="trash-outline" color={c.danger} onPress={remove} label={S.delete} />
       </Row>}
       footer={
-        <Row gap={10} style={{ padding: 12, backgroundColor: COLORS.surface, borderTopWidth: 1, borderTopColor: COLORS.line }}>
+        <Row gap={10} style={{ padding: 12, backgroundColor: c.surface, borderTopWidth: 1, borderTopColor: c.line }}>
           <Button icon="share-social-outline" label={S.share} onPress={() => router.push({ pathname: '/export', params: { ids: w.id } })} style={{ flex: 1 }} />
           <Button icon="image-outline" variant="gold" label={S.cardDesigner} onPress={() => router.push({ pathname: '/card/[id]', params: { id: w.id } })} style={{ flex: 1 }} />
         </Row>
       }>
       <ScrollView contentContainerStyle={{ padding: SPACING.xl, paddingBottom: 40, gap: 6 }}>
-        <Row gap={6} style={{ justifyContent: align === 'center' ? 'center' : 'flex-start' }}><Icon name={c.icon} size={16} color={COLORS.secondary} /><UText size={14} color={COLORS.secondary}>{c.name}</UText></Row>
-        <UText size={readerSize + 10} color={COLORS.primary} center={align === 'center'} spacing={1.8}>{w.title || S.untitled}</UText>
-        {w.author ? <UText size={16} color={COLORS.muted} center={align === 'center'}>{w.author}</UText> : null}
-        <View style={{ height: 2, width: 64, backgroundColor: COLORS.secondary, borderRadius: 1, alignSelf: align === 'center' ? 'center' : 'flex-end', marginVertical: 10 }} />
+        <Row gap={6} style={{ justifyContent: align === 'center' ? 'center' : 'flex-start' }}><Icon name={cat.icon} size={16} color={c.secondary} /><UText size={14} color={c.secondary}>{cat.name}</UText></Row>
+        <UText size={readerSize + 10} color={c.primary} center={align === 'center'} spacing={1.8}>{w.title || S.untitled}</UText>
+        {w.author ? <UText size={16} color={c.muted} center={align === 'center'}>{w.author}</UText> : null}
+        <View style={{ height: 2, width: 64, backgroundColor: c.secondary, borderRadius: 1, alignSelf: align === 'center' ? 'center' : 'flex-end', marginVertical: 10 }} />
         {poetry
           ? splitCouplets(w.content).map((b, i) => (
             <View key={i} style={{ marginBottom: 18 }}>{b.map((l, k) => <UText key={k} size={readerSize} center spacing={readerSpacing} selectable>{l}</UText>)}</View>
@@ -61,8 +63,8 @@ export default function Reader() {
       </ScrollView>
 
       <Sheet visible={showVer} onClose={() => setShowVer(false)} title={S.versions}>
-        {!versions || versions.length === 0 ? <UText size={15} color={COLORS.muted} center>{S.noVersions}</UText> : versions.map((v) => (
-          <View key={v.id} style={{ backgroundColor: COLORS.surface, borderRadius: RADII.md, padding: 12, gap: 4, borderWidth: 1, borderColor: COLORS.line }}>
+        {!versions || versions.length === 0 ? <UText size={15} color={c.muted} center>{S.noVersions}</UText> : versions.map((v) => (
+          <View key={v.id} style={{ backgroundColor: c.surface, borderRadius: RADII.md, padding: 12, gap: 4, borderWidth: 1, borderColor: c.line }}>
             <Muted>{formatDate(v.created_at)} · {formatTime(v.created_at)}</Muted>
             <UText size={16} lines={2}>{v.title || v.content}</UText>
             <Button small variant="ghost" label={S.restoreVersion} onPress={async () => { await restoreVersion(v.id); useUi.getState().bump(); setShowVer(false); toast(S.done, 'ok'); }} />

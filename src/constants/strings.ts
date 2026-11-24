@@ -76,5 +76,24 @@ export const S = {
   // misc
   loading: 'لوڈ ہو رہا ہے…', error: 'کچھ غلط ہو گیا', notFound: 'تحریر نہیں ملی', today: 'آج', yesterday: 'کل', dbOpenFail: 'ڈیٹا بیس نہیں کھل سکا',
   untitled: 'بے عنوان', confirm: 'تصدیق', done: 'مکمل', add: 'شامل کریں', date: 'تاریخ', category: 'صنف',
+
+  // v2 navigation & screens
+  navHome: 'ہوم', navWritings: 'تحریریں', navCreate: 'تخلیق', navFav: 'پسندیدہ', navMore: 'مزید',
+  greetMorning: 'صبح بخیر', greetDay: 'آداب', greetEvening: 'شام بخیر', greetNight: 'شب بخیر', homeSub: 'آج کیا لکھنا ہے؟',
+  newPoetryCard: 'شعری کارڈ بنائیں', continueWriting: 'لکھنا جاری رکھیں', myCollections: 'میرے مجموعے', stats: 'آپ کی تحریری کارکردگی', totalWords: 'کل الفاظ', statCollections: 'مجموعے', poetryN: 'شاعری', proseN: 'نثر',
+  favSection: 'پسندیدہ تحریریں', noCollectionsHome: 'ابھی کوئی مجموعہ نہیں',
+  tabAll: 'سب', tabPoetry: 'شاعری', tabProse: 'نثر', sortTitle: 'عنوان کے مطابق', sortWords: 'زیادہ الفاظ پہلے', sortBy: 'ترتیب', lastEdited: 'آخری ترمیم',
+  select: 'منتخب کریں', selected: 'منتخب', selectAll: 'سب منتخب کریں', clearSel: 'منتخب ختم', addToColl: 'مجموعے میں شامل کریں', removeFromColl: 'مجموعے سے ہٹائیں', unfav: 'پسندیدہ سے ہٹائیں',
+  confirmDeleteN: 'کیا آپ منتخب تحریریں ہمیشہ کے لیے حذف کرنا چاہتے ہیں؟', actions: 'کارروائیاں', deletedN: 'تحریریں حذف ہو گئیں', addedToColl: 'مجموعے میں شامل ہو گئیں',
+  recentSearches: 'حالیہ تلاشیں', clearRecent: 'صاف کریں', searchAll: 'عنوان، مصنف یا متن میں تلاش کریں',
+  collections: 'مجموعے', newCollection: 'نیا مجموعہ', editCollection: 'مجموعے میں ترمیم', collTitle: 'مجموعے کا نام', collDesc: 'مختصر تعارف', collColor: 'سرورق کا رنگ', collEmptyT: 'ابھی کوئی مجموعہ نہیں', collEmptyD: 'اپنی غزلیں، نظمیں یا مضامین کو مجموعوں میں ترتیب دیں۔',
+  collDetailEmptyT: 'یہ مجموعہ خالی ہے', collDetailEmptyD: 'تحریریں منتخب کر کے «مجموعے میں شامل کریں» دبائیں۔', confirmDeleteColl: 'مجموعہ حذف ہو گا، لیکن اس کی تحریریں محفوظ رہیں گی۔ جاری رکھیں؟', writingsN: 'تحریریں', favN: 'پسندیدہ', nameRequired: 'مجموعے کا نام لکھیں',
+  newCollectionInline: 'نیا مجموعہ بنائیں',
+  voiceStudio: 'آواز سے لکھیں', recording: 'ریکارڈنگ', cloudNote: 'یہ طریقہ بول چکنے کے بعد جملہ جملہ متن دیتا ہے، ساتھ ساتھ نہیں۔', startHint: 'بولنے کے لیے بڑے مائیک کو دبائیں', stopSave: 'ختم کریں اور محفوظ کریں', editTranscript: 'متن میں ترمیم کریں',
+  secLook: 'ظاہری شکل', secFont: 'اردو فونٹ', secVoice: 'آواز کی ترتیبات', secBackup: 'بیک اپ', secPrivacy: 'رازداری', secAbout: 'ایپ کی معلومات', secShortcuts: 'جلدی رسائی',
+  themeLight: 'روشن', themeDark: 'گہرا', themeSystem: 'فون کے مطابق', themeMode: 'تھیم', themeHint: 'روشن یا گہرا انداز منتخب کریں',
+  fontNote: 'الوی نستعلیق تمام تحریروں کا بنیادی فونٹ ہے۔ کارڈ ڈیزائنر میں مزید فونٹ ملتے ہیں۔', fontSizeSet: 'پڑھنے اور لکھنے کا انداز',
+  ob4t: 'مجموعے اور کارڈ', ob4d: 'تحریروں کو مجموعوں میں ترتیب دیں اور خوبصورت شعری کارڈ بنا کر شیئر کریں۔',
+  pickCardT: 'کارڈ کس تحریر کا بنانا ہے؟', align2: 'ترتیب', showMore: 'مزید دیکھیں', openLib: 'تحریریں کھولیں',
 };
 export type StringKey = keyof typeof S;

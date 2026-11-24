@@ -1,88 +1,188 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { View } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
-import { captureRef } from 'react-native-view-shot';
-import { BG_THEMES, COLORS, FONT, RADII, lineHeightFor } from '../../constants/theme';
-import { S } from '../../constants/strings';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, View, useWindowDimensions } from 'react-native';
+import { useLocalSearchParams, useNavigation } from 'expo-router';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useStore } from 'zustand';
+import { ROW, RADII } from '../../constants/theme';
+import { useTheme } from '../../hooks/useTheme';
 import { getWriting } from '../../database/repositories/writings';
-import { splitCouplets } from '../../utils/text';
-import { toast } from '../../stores/ui';
-import { shareImageFile } from '../../services/exporter';
-import { Button, Chip, Field, HScroll, Muted, Row, Screen, SectionTitle, UText, IconButton } from '../../components/design-system';
-import type { Writing } from '../../types';
+import { getCardDesign, saveCardDesign } from '../../database/repositories/cards';
+import { splitCouplets, urduDigits } from '../../utils/text';
+import { confirmDialog, toast } from '../../stores/ui';
+import { Button, Chip, Icon, IconButton, Muted, Row, Sheet, UText, type IconName } from '../../components/design-system';
+import { BASE_DESIGN, newDesign } from '../../features/card/templates';
+import { CardCanvas } from '../../features/card/CardCanvas';
+import { CardProvider } from '../../features/card/context';
+import { createCardStore, isDirty, type CardStore } from '../../features/card/store';
+import { BackgroundPanel, ColorPanel, DecorPanel, DesignPanel, ImagePanel, TextPanel } from '../../features/card/panels';
+import { ensureAllCardFonts } from '../../features/card/fontLoader';
+import { CS, type CardTab } from '../../features/card/strings';
+import { canvasSize, exportPixels, type ElementId } from '../../features/card/types';
+import { captureCard, saveCardToGallery, shareCardImage, type ImageFormat } from '../../services/cardExport';
 
-const W = 360, H = 450; // design size (4:5); exported at 3x = 1080x1350
-const FRAMES = [{ id: 'plain', name: 'سادہ' }, { id: 'line', name: 'دوہری لکیر' }, { id: 'corner', name: 'کونے' }] as const;
-const COLOR_CHOICES = ['#292B29', '#F7F3EA', '#C19A5B', '#174C3A', '#FFFFFF', '#4A2A2A'];
+const TABS: { id: CardTab; label: string; icon: IconName }[] = [
+  { id: 'text', label: CS.tText, icon: 'text' }, { id: 'design', label: CS.tDesign, icon: 'grid-outline' }, { id: 'color', label: CS.tColor, icon: 'color-palette-outline' },
+  { id: 'bg', label: CS.tBg, icon: 'layers-outline' }, { id: 'decor', label: CS.tDecor, icon: 'sparkles-outline' }, { id: 'image', label: CS.tImage, icon: 'image-outline' },
+];
+type PanelMode = 'closed' | 'half' | 'full';
+const TAB_OF: Record<ElementId, CardTab> = { text: 'text', title: 'text', poet: 'text', frame: 'decor', bg: 'bg', image: 'image' };
 
-// Screen 14 — Poetry card designer. The card is its own View (real text rendering, correct Urdu shaping & RTL),
-// captured to an image at high resolution — it is NOT a screenshot of the editor.
-export default function CardDesigner() {
+/**
+ * Card / post editor. The preview is ALWAYS on screen: on phones it sits above the tool panel (the panel only changes height,
+ * the preview re-fits into what is left); on wide screens the tools move to the side. All tools write to ONE store.
+ */
+export default function CardEditor() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const [w, setW] = useState<Writing | null>(null);
-  const [text, setText] = useState('');
-  const [theme, setTheme] = useState<string>(BG_THEMES[0].id);
-  const [frame, setFrame] = useState<(typeof FRAMES)[number]['id']>('line');
-  const [size, setSize] = useState(26);
-  const [spacing, setSpacing] = useState(2.0);
-  const [align, setAlign] = useState<'center' | 'right'>('center');
-  const [color, setColor] = useState<string | null>(null);
-  const [author, setAuthor] = useState('');
-  const [fmt, setFmt] = useState<'png' | 'jpg'>('png');
-  const [busy, setBusy] = useState(false);
-  const ref = useRef<React.ComponentRef<typeof View>>(null);
+  const [store, setStore] = useState<CardStore | null>(null);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const [w, saved] = await Promise.all([getWriting(id), getCardDesign(id), ensureAllCardFonts()]);
+        if (!alive) return;
+        if (!w) { setFailed(true); return; }
+        const first = splitCouplets(w.content).slice(0, 2).map((b) => b.join('\n')).join('\n\n') || w.content.slice(0, 200);
+        const init = saved ?? newDesign({ text: first, title: w.title, poet: w.author });
+        setStore(createCardStore({ ...BASE_DESIGN, ...init }));
+      } catch { if (alive) setFailed(true); }
+    })();
+    return () => { alive = false; };
+  }, [id]);
+  const { c } = useTheme();
+  if (!store) return <SafeAreaView style={{ flex: 1, backgroundColor: c.bg, alignItems: 'center', justifyContent: 'center' }}>{failed ? <UText size={18} center>{CS.expFail}</UText> : <ActivityIndicator color={c.primary} size="large" />}</SafeAreaView>;
+  return <CardProvider store={store}><Workspace id={id} store={store} /></CardProvider>;
+}
 
-  useEffect(() => { getWriting(id).then((x) => { if (!x) return; setW(x); setAuthor(x.author); const first = splitCouplets(x.content).slice(0, 2).map((b) => b.join('\n')).join('\n\n'); setText(first || x.content.slice(0, 200)); }); }, [id]);
-  const t = BG_THEMES.find((x) => x.id === theme)!;
-  const fg = color ?? t.fg;
+function Workspace({ id, store }: { id: string; store: CardStore }) {
+  const { c } = useTheme();
+  const nav = useNavigation();
+  const insets = useSafeAreaInsets();
+  const { width: W, height: H } = useWindowDimensions();
+  const wide = W >= 720;
+  const design = useStore(store, (s) => s.design);
+  const canUndo = useStore(store, (s) => s.past.length > 0);
+  const canRedo = useStore(store, (s) => s.future.length > 0);
+  const dirty = useStore(store, isDirty);
+  const [tab, setTab] = useState<CardTab>('text');
+  const [mode, setMode] = useState<PanelMode>('half');
+  const [zoom, setZoom] = useState(false);
+  const [sel, setSel] = useState<ElementId | null>(null);
+  const [box, setBox] = useState({ w: 0, h: 0 });
+  const [showExport, setShowExport] = useState(false);
+  const [fmt, setFmt] = useState<ImageFormat>('png');
+  const [busy, setBusy] = useState<null | 'share' | 'gallery'>(null);
+  const [exporting, setExporting] = useState(false);
+  const exportRef = useRef<React.ComponentRef<typeof View>>(null);
+  const readyRes = useRef<(() => void) | null>(null);
+  const bypass = useRef(false);
 
-  const exportCard = async () => {
-    if (!text.trim()) { toast(S.cardTooLong, 'error'); return; }
-    setBusy(true);
+  // never lose unsaved work by accident (back button, gesture, header arrow)
+  useEffect(() => (nav as any).addListener('beforeRemove', (e: any) => {
+    if (bypass.current || !isDirty(store.getState())) return;
+    e.preventDefault();
+    confirmDialog(CS.discard, { danger: true, okLabel: CS.leave }).then((ok) => { if (ok) { bypass.current = true; nav.dispatch(e.data.action); } });
+  }), [nav, store]);
+
+  const save = useCallback(async () => { await saveCardDesign(id, store.getState().design); store.getState().markSaved(); toast(CS.saved, 'ok'); }, [id, store]);
+
+  const { w: cw, h: ch } = canvasSize(design.ratio);
+  const pad = 16;
+  const fit = box.w > 0 ? Math.max(0.2, Math.min((box.w - pad * 2) / cw, (box.h - pad * 2) / ch, 2.4)) : 1;
+  const scale = zoom ? Math.min(fit * 1.8, 3.2) : fit;
+
+  const panelH = mode === 'closed' ? 0 : mode === 'half' ? Math.max(200, Math.min(0.36 * H, 330)) : Math.max(300, 0.62 * H);
+  const onSelect = useCallback((e: ElementId) => { setSel(e); setTab(TAB_OF[e]); setMode((m) => (m === 'closed' ? 'half' : m)); }, []);
+  const pickTab = (t: CardTab) => { if (t === tab) setMode((m) => (m === 'closed' ? 'half' : 'closed')); else { setTab(t); setMode((m) => (m === 'closed' ? 'half' : m)); } };
+
+  const run = async (kind: 'share' | 'gallery') => {
+    setBusy(kind);
     try {
-      const uri = await captureRef(ref, { format: fmt === 'png' ? 'png' : 'jpg', quality: 1, width: W * 3, height: H * 3, result: 'tmpfile' });
-      await shareImageFile(uri, fmt === 'png' ? 'image/png' : 'image/jpeg');
-    } catch { toast(S.exportFailed, 'error'); } finally { setBusy(false); }
+      await new Promise<void>((res) => { readyRes.current = res; setExporting(true); setTimeout(res, 4000); });
+      await new Promise((r) => setTimeout(r, 250));
+      const uri = await captureCard(exportRef, design.ratio, fmt);
+      if (kind === 'share') await shareCardImage(uri, fmt);
+      else { const r = await saveCardToGallery(uri); toast(r === 'ok' ? CS.galleryOk : CS.galleryDenied, r === 'ok' ? 'ok' : 'error'); }
+    } catch (e: any) { toast(e?.message === 'sharing-unavailable' ? 'اس فون پر شیئرنگ دستیاب نہیں' : CS.expFail, 'error'); }
+    finally { setExporting(false); setBusy(null); }
   };
 
+  const preview = (
+    <View style={{ flex: 1, backgroundColor: c.surfaceAlt }} onLayout={(e) => setBox({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
+      {box.w > 0 ? (
+        zoom ? (
+          <ScrollView contentContainerStyle={{ padding: pad, alignItems: 'center', justifyContent: 'center', minHeight: box.h }} showsVerticalScrollIndicator={false}>
+            <ScrollView horizontal contentContainerStyle={{ minWidth: box.w - pad * 2, alignItems: 'center', justifyContent: 'center' }} showsHorizontalScrollIndicator={false}>
+              <CardCanvas design={design} scale={scale} selected={sel} onSelect={onSelect} />
+            </ScrollView>
+          </ScrollView>
+        ) : (
+          <Pressable style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }} onPress={() => setSel(null)} accessibilityLabel={CS.editHint}>
+            <View style={{ shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 6, borderRadius: design.radius * scale }}>
+              <CardCanvas design={design} scale={scale} selected={sel} onSelect={onSelect} />
+            </View>
+          </Pressable>
+        )
+      ) : null}
+      <View style={{ position: 'absolute', bottom: 8, alignSelf: 'center', backgroundColor: c.scrim, borderRadius: RADII.pill, paddingHorizontal: 12 }}><UText size={11} color="#FFFFFF" spacing={1.5}>{sel ? '' : CS.editHint}</UText></View>
+      <View style={{ position: 'absolute', top: 6, left: 8 }}><IconButton icon={zoom ? 'contract-outline' : 'expand-outline'} bg={c.surface} onPress={() => setZoom((z) => !z)} label={zoom ? CS.fit : CS.zoom} /></View>
+    </View>
+  );
+
+  const body = useMemo(() => {
+    switch (tab) {
+      case 'text': return <TextPanel />; case 'design': return <DesignPanel />; case 'color': return <ColorPanel />;
+      case 'bg': return <BackgroundPanel goImage={() => setTab('image')} />; case 'decor': return <DecorPanel />; default: return <ImagePanel />;
+    }
+  }, [tab]);
+
+  const tools = (
+    <View style={{ backgroundColor: c.bg, borderTopLeftRadius: wide ? 0 : RADII.xl, borderTopRightRadius: wide ? 0 : RADII.xl, borderTopWidth: 1, borderColor: c.line, paddingBottom: insets.bottom, ...(wide ? { width: 400, borderTopWidth: 0, borderLeftWidth: 1, flex: undefined } : null) }}>
+      {!wide ? <Pressable accessibilityRole="button" accessibilityLabel="پینل" onPress={() => setMode((m) => (m === 'full' ? 'half' : 'full'))} style={{ alignItems: 'center', paddingVertical: 6 }}><View style={{ width: 44, height: 5, borderRadius: 3, backgroundColor: c.line }} /></Pressable> : null}
+      <View style={{ paddingHorizontal: 8 }}>
+        <Row gap={4} style={{ justifyContent: 'space-between' }}>
+          {TABS.map((t) => { const on = tab === t.id && mode !== 'closed'; return (
+            <Pressable key={t.id} accessibilityRole="tab" accessibilityLabel={t.label} accessibilityState={{ selected: on }} onPress={() => pickTab(t.id)} style={{ flex: 1, minHeight: 56, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? c.primary : 'transparent' }}>
+              <Icon name={t.icon} size={21} color={on ? c.onPrimary : c.muted} /><UText size={11} color={on ? c.onPrimary : c.muted} center spacing={1.3}>{t.label}</UText>
+            </Pressable>); })}
+        </Row>
+      </View>
+      {wide || mode !== 'closed' ? (
+        <ScrollView style={{ height: wide ? undefined : panelH, flex: wide ? 1 : undefined }} keyboardShouldPersistTaps="handled" nestedScrollEnabled contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>{body}</ScrollView>
+      ) : null}
+    </View>
+  );
+
   return (
-    <Screen title={S.cardDesigner} back>
-      <View style={{ alignItems: 'center' }}>
-        <View ref={ref} collapsable={false} style={{ width: W, height: H, backgroundColor: t.bg, borderRadius: 4, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', padding: 34 }}>
-          {frame !== 'plain' ? <View style={{ position: 'absolute', top: 14, bottom: 14, width: W - 28, borderWidth: 1.5, borderColor: t.accent, borderRadius: frame === 'corner' ? 2 : 6 }} /> : null}
-          {frame === 'line' ? <View style={{ position: 'absolute', top: 22, bottom: 22, width: W - 44, borderWidth: 0.8, borderColor: t.accent, opacity: 0.6 }} /> : null}
-          {frame === 'corner' ? <>
-            {[0, 1].map((r) => [0, 1].map((c) => <View key={`${r}${c}`} style={{ position: 'absolute', top: r ? undefined : 8, bottom: r ? 8 : undefined, [c ? 'right' : 'left']: 8, width: 26, height: 26, borderColor: t.accent, borderTopWidth: r ? 0 : 3, borderBottomWidth: r ? 3 : 0, borderLeftWidth: c ? 0 : 3, borderRightWidth: c ? 3 : 0 } as any} />))}
-          </> : null}
-          <UText size={size} color={fg} center={align === 'center'} spacing={spacing} style={{ alignSelf: 'stretch' }}>{text}</UText>
-          {author ? <><View style={{ width: 40, height: 2, backgroundColor: t.accent, marginTop: 14, marginBottom: 4 }} /><UText size={15} color={t.accent} center spacing={1.6}>{author}</UText></> : null}
-        </View>
+    <SafeAreaView style={{ flex: 1, backgroundColor: c.bg }} edges={['top']}>
+      <Row gap={0} style={{ height: 52, paddingHorizontal: 4 }}>
+        <IconButton icon="chevron-forward" label="واپس" onPress={() => nav.goBack()} />
+        <View style={{ flex: 1 }}><UText size={17} color={c.primary} lines={1} spacing={1.6}>{CS.title}</UText></View>
+        <IconButton icon="arrow-undo" label={CS.undo} disabled={!canUndo} onPress={() => store.getState().undo()} />
+        <IconButton icon="arrow-redo" label={CS.redo} disabled={!canRedo} onPress={() => store.getState().redo()} />
+        <IconButton icon={dirty ? 'save' : 'save-outline'} color={dirty ? c.accent : c.text} label={CS.save} onPress={save} />
+        <IconButton icon="share-outline" bg={c.primary} color={c.onPrimary} label={CS.export} onPress={() => setShowExport(true)} />
+      </Row>
+      <View style={{ flex: 1, flexDirection: wide ? ROW : 'column' }}>
+        {wide ? tools : null}
+        {preview}
+        {wide ? null : tools}
       </View>
 
-      <Field label={S.pickLines} value={text} onChangeText={setText} multiline style={{ minHeight: 110 }} />
-      <Field label={S.author} value={author} onChangeText={setAuthor} placeholder={S.authorHint} />
+      <Sheet visible={showExport} onClose={() => !busy && setShowExport(false)} title={CS.export}>
+        <Muted>{CS.format}</Muted>
+        <Row gap={8}><Chip label="PNG" active={fmt === 'png'} onPress={() => setFmt('png')} /><Chip label="JPG" active={fmt === 'jpg'} onPress={() => setFmt('jpg')} /></Row>
+        <Muted>{`${CS.resolution}: ${urduDigits(exportPixels(design.ratio).w)} × ${urduDigits(exportPixels(design.ratio).h)}`}</Muted>
+        <Button icon="share-social-outline" label={CS.share} loading={busy === 'share'} disabled={!!busy} onPress={() => run('share')} />
+        <Button variant="teal" icon="download-outline" label={CS.gallery} loading={busy === 'gallery'} disabled={!!busy} onPress={() => run('gallery')} />
+        {busy ? <Muted center>{CS.exporting}</Muted> : null}
+      </Sheet>
 
-      <SectionTitle>{S.background}</SectionTitle>
-      <HScroll gap={10}>
-        {BG_THEMES.map((b) => (
-          <View key={b.id} style={{ alignItems: 'center', gap: 2 }}>
-            <View onTouchEnd={() => { setTheme(b.id); setColor(null); }} style={{ width: 54, height: 54, borderRadius: 27, backgroundColor: b.bg, borderWidth: theme === b.id ? 3 : 1, borderColor: theme === b.id ? COLORS.primary : COLORS.line }} />
-            <Muted>{b.name}</Muted>
-          </View>
-        ))}
-      </HScroll>
-      <SectionTitle>{S.template}</SectionTitle>
-      <Row gap={8} wrap>{FRAMES.map((f) => <Chip key={f.id} label={f.name} active={frame === f.id} onPress={() => setFrame(f.id)} />)}</Row>
-      <SectionTitle>{S.textColor}</SectionTitle>
-      <Row gap={10} wrap>{COLOR_CHOICES.map((c) => <View key={c} onTouchEnd={() => setColor(c)} style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: c, borderWidth: fg === c ? 3 : 1, borderColor: fg === c ? COLORS.primary : COLORS.line }} />)}</Row>
-      <SectionTitle>{S.textSize}</SectionTitle>
-      <Row gap={6}><IconButton icon="remove-circle-outline" onPress={() => setSize(Math.max(14, size - 2))} /><UText size={18} center style={{ minWidth: 40 }}>{size}</UText><IconButton icon="add-circle-outline" onPress={() => setSize(Math.min(48, size + 2))} />
-        <View style={{ width: 16 }} /><Muted>{S.spacing}</Muted><IconButton icon="remove-circle-outline" onPress={() => setSpacing(Math.max(1.4, +(spacing - 0.2).toFixed(1)))} /><IconButton icon="add-circle-outline" onPress={() => setSpacing(Math.min(3.2, +(spacing + 0.2).toFixed(1)))} /></Row>
-      <SectionTitle>{S.alignment}</SectionTitle>
-      <Row gap={8}><Chip label={S.alignCenter} icon="reorder-three-outline" active={align === 'center'} onPress={() => setAlign('center')} /><Chip label={S.alignRight} icon="menu-outline" active={align === 'right'} onPress={() => setAlign('right')} /></Row>
-      <Row gap={8}><Chip label={S.formatPng} active={fmt === 'png'} onPress={() => setFmt('png')} /><Chip label={S.formatJpg} active={fmt === 'jpg'} onPress={() => setFmt('jpg')} /></Row>
-      <Button icon="share-social-outline" label={S.shareCard} loading={busy} onPress={exportCard} />
-    </Screen>
+      {exporting ? (
+        <View ref={exportRef} collapsable={false} pointerEvents="none" style={{ position: 'absolute', left: -10000, top: 0 }}>
+          <CardCanvas design={design} scale={1} onReady={() => readyRes.current?.()} />
+        </View>
+      ) : null}
+    </SafeAreaView>
   );
 }
-void FONT; void RADII; void lineHeightFor;
