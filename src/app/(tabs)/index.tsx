@@ -2,7 +2,7 @@ import React from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { COVER_COLORS, RADII, SHADOW, SPACING } from '../../constants/theme';
+import { COVER_COLORS, RADII, ROW, SHADOW, SPACING } from '../../constants/theme';
 import { S } from '../../constants/strings';
 import { APP_NAME } from '../../constants/app';
 import { countWritings, getWriting, listWritings } from '../../database/repositories/writings';
@@ -10,8 +10,10 @@ import { listCollections } from '../../database/repositories/collections';
 import { getSetting } from '../../database/repositories/settings';
 import { useQuery } from '../../hooks/useAsync';
 import { useTheme } from '../../hooks/useTheme';
-import { urduDigits } from '../../utils/text';
-import { Button, Card, Empty, GradientCard, HScroll, Icon, IconButton, Row, SectionTitle, SkeletonList, UText, type IconName } from '../../components/design-system';
+import { formatDate, urduDigits } from '../../utils/text';
+import { authorOf } from '../../stores/settings';
+import { Button, Card, Empty, GradientCard, Icon, IconButton, Row, SectionTitle, SkeletonList, UText, type IconName } from '../../components/design-system';
+import { DevCredit } from '../../components/design-system/Text';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { preview } from '../../components/WritingCard';
 import { catById } from '../../constants/categories';
@@ -22,7 +24,7 @@ const greeting = () => { const h = new Date().getHours(); return h < 5 ? S.greet
 
 function Quick({ icon, label, colors, onPress }: { icon: IconName; label: string; colors: [string, string]; onPress: () => void }) {
   return (
-    <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={({ pressed }) => [{ flex: 1, opacity: pressed ? 0.9 : 1, transform: [{ scale: pressed ? 0.97 : 1 }] }, SHADOW]}>
+    <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={({ pressed }) => [{ flex: 1, borderRadius: RADII.lg, opacity: pressed ? 0.9 : 1, transform: [{ scale: pressed ? 0.97 : 1 }] }, SHADOW]}>
       <LinearGradient colors={colors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ borderRadius: RADII.lg, minHeight: 112, padding: 12, justifyContent: 'space-between' }}>
         <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.25)', alignItems: 'center', justifyContent: 'center' }}><Icon name={icon} size={22} color="#FFFFFF" /></View>
         <UText size={15} color="#FFFFFF" spacing={1.6}>{label}</UText>
@@ -33,11 +35,21 @@ function Quick({ icon, label, colors, onPress }: { icon: IconName; label: string
 
 function MiniWriting({ w }: { w: Writing }) {
   const { c } = useTheme();
+  const author = authorOf(w);
   return (
-    <Pressable accessibilityRole="button" accessibilityLabel={w.title || S.untitled} onPress={() => openWriting(w.id)} style={{ width: 210, backgroundColor: c.surface, borderRadius: RADII.lg, padding: 12, borderWidth: 1, borderColor: c.line, gap: 2, ...SHADOW }}>
-      <Row style={{ justifyContent: 'space-between' }}><UText size={12} color={c.secondary} spacing={1.4}>{catById(w.category_id).name}</UText>{w.is_favorite ? <Icon name="heart" size={14} color={c.danger} /> : null}</Row>
-      <UText size={17} color={c.primary} lines={1} spacing={1.7}>{w.title || S.untitled}</UText>
-      <UText size={14} lines={2} spacing={1.8}>{preview(w) || ' '}</UText>
+    <Pressable accessibilityRole="button" accessibilityLabel={w.title || S.untitled} onPress={() => openWriting(w.id)} style={({ pressed }) => [{ backgroundColor: c.surface, borderRadius: RADII.lg, paddingVertical: 12, paddingHorizontal: 16, borderWidth: 1, borderColor: c.line, gap: 2, overflow: 'hidden', opacity: pressed ? 0.9 : 1 }, SHADOW]}>
+      <View style={{ position: 'absolute', top: 0, bottom: 0, [ROW === 'row' ? 'left' : 'right']: 0, width: 5, backgroundColor: c.primary }} />
+      <Row style={{ justifyContent: 'space-between' }}>
+        <View style={{ flexDirection: ROW, alignItems: 'center', gap: 6, backgroundColor: c.tint, borderRadius: RADII.pill, paddingHorizontal: 10 }}><Icon name={catById(w.category_id).icon} size={14} color={c.primary} /><UText size={12} color={c.primary} spacing={1.5}>{catById(w.category_id).name}</UText></View>
+        {w.is_favorite ? <Icon name="heart" size={16} color={c.danger} /> : null}
+      </Row>
+      <UText size={19} color={c.primary} lines={1} spacing={1.8}>{w.title || S.untitled}</UText>
+      <UText size={15} lines={2} spacing={1.9}>{preview(w) || ' '}</UText>
+      <Row style={{ justifyContent: 'space-between' }}>
+        <UText size={12} color={c.muted} spacing={1.4}>{formatDate(w.updated_at)}</UText>
+        {author ? <UText size={13} color={c.secondary} lines={1} spacing={1.5}>{author}</UText> : null}
+      </Row>
+      <DevCredit align="left" />
     </Pressable>
   );
 }
@@ -98,24 +110,26 @@ export default function Home() {
             </Row>
 
             <SectionTitle right={data?.recent.length ? <Button small variant="ghost" label={S.seeAll} onPress={() => router.push('/(tabs)/library')} /> : undefined}>{S.recent}</SectionTitle>
-            {data && data.recent.length === 0 ? <Empty icon="book-outline" title={S.emptyLibT} text={S.emptyLibD} action={<Button icon="create-outline" label={S.writeNew} onPress={() => router.push('/create')} />} /> : <HScroll gap={12}>{data?.recent.map((w) => <MiniWriting key={w.id} w={w} />)}</HScroll>}
+            {data && data.recent.length === 0 ? <Empty icon="book-outline" title={S.emptyLibT} text={S.emptyLibD} action={<Button icon="create-outline" label={S.writeNew} onPress={() => router.push('/create')} />} /> : <View style={{ gap: 12 }}>{data?.recent.slice(0, 4).map((w) => <MiniWriting key={w.id} w={w} />)}</View>}
 
-            {data && data.favs.length ? (<><SectionTitle right={<Button small variant="ghost" label={S.seeAll} onPress={() => router.push('/(tabs)/favorites')} />}>{S.favSection}</SectionTitle><HScroll gap={12}>{data.favs.map((w) => <MiniWriting key={w.id} w={w} />)}</HScroll></>) : null}
+            {data && data.favs.length ? (<><SectionTitle right={<Button small variant="ghost" label={S.seeAll} onPress={() => router.push('/(tabs)/favorites')} />}>{S.favSection}</SectionTitle><View style={{ gap: 12 }}>{data.favs.slice(0, 3).map((w) => <MiniWriting key={w.id} w={w} />)}</View></>) : null}
 
             <SectionTitle right={<Button small variant="ghost" label={S.seeAll} onPress={() => router.push('/collections')} />}>{S.myCollections}</SectionTitle>
             {data && data.colls.length === 0 ? <Card onPress={() => router.push('/collections')} label={S.newCollection}><Row gap={10}><Icon name="add-circle" size={26} color={c.secondary} /><UText size={15} color={c.muted}>{S.noCollectionsHome}</UText></Row></Card> : (
-              <HScroll gap={12}>
-                {data?.colls.slice(0, 8).map((col) => (
-                  <Pressable key={col.id} accessibilityRole="button" accessibilityLabel={col.title} onPress={() => router.push({ pathname: '/collection/[id]', params: { id: col.id } })} style={SHADOW}>
-                    <LinearGradient colors={COVER_COLORS[col.color % COVER_COLORS.length]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ width: 150, height: 100, borderRadius: RADII.lg, padding: 12, justifyContent: 'space-between' }}>
-                      <Icon name="albums" size={20} color="rgba(255,255,255,0.9)" /><View><UText size={16} color="#FFFFFF" lines={1} spacing={1.6}>{col.title}</UText><UText size={12} color="rgba(255,255,255,0.9)" spacing={1.4}>{`${urduDigits(col.count)} ${S.writingsN}`}</UText></View>
+              <View style={{ flexDirection: ROW, flexWrap: 'wrap', gap: 12 }}>
+                {data?.colls.slice(0, 6).map((col) => (
+                  <Pressable key={col.id} accessibilityRole="button" accessibilityLabel={col.title} onPress={() => router.push({ pathname: '/collection/[id]', params: { id: col.id } })} style={[{ width: '48%', borderRadius: RADII.lg }, SHADOW]}>
+                    <LinearGradient colors={COVER_COLORS[col.color % COVER_COLORS.length]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ minHeight: 104, borderRadius: RADII.lg, padding: 12, justifyContent: 'space-between' }}>
+                      <Icon name="albums" size={22} color="rgba(255,255,255,0.92)" />
+                      <View><UText size={17} color="#FFFFFF" lines={1} spacing={1.7}>{col.title}</UText><UText size={13} color="rgba(255,255,255,0.92)" spacing={1.5}>{`${col.count} ${S.writingsN}`}</UText></View>
                     </LinearGradient>
                   </Pressable>
                 ))}
-              </HScroll>
+              </View>
             )}
           </>
         )}
+        <DevCredit style={{ marginTop: 6 }} />
       </ScrollView>
       {void toggleFavorite}
     </SafeAreaView>
