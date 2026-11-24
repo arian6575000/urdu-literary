@@ -15,7 +15,7 @@ import { CardCanvas } from '../../features/card/CardCanvas';
 import { CardProvider } from '../../features/card/context';
 import { createCardStore, isDirty, type CardStore } from '../../features/card/store';
 import { EASY_STEPS, EasyBody, BigButton } from '../../features/card/SimplePanel';
-import { useSettings } from '../../stores/settings';
+import { authorOf, useSettings } from '../../stores/settings';
 import { BackgroundPanel, ColorPanel, DecorPanel, DesignPanel, ImagePanel, TextPanel } from '../../features/card/panels';
 import { ensureAllCardFonts } from '../../features/card/fontLoader';
 import { CS, type CardTab } from '../../features/card/strings';
@@ -45,7 +45,7 @@ export default function CardEditor() {
         if (!alive) return;
         if (!w) { setFailed(true); return; }
         const first = splitCouplets(w.content).slice(0, 2).map((b) => b.join('\n')).join('\n\n') || w.content.slice(0, 200);
-        const init = saved ?? newDesign({ text: first, title: w.title, poet: w.author });
+        const init = saved ?? newDesign({ text: first, title: w.title, poet: authorOf(w) });
         setStore(createCardStore({ ...BASE_DESIGN, ...init }));
       } catch { if (alive) setFailed(true); }
     })();

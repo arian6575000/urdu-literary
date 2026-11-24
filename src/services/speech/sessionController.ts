@@ -161,6 +161,7 @@ export class VoiceSessionController {
   }
 
   private fail(e: SpeechError) {
+    this.o.log(`FAIL ${e.code}${e.fatal ? ' (fatal)' : ''}: ${e.message}`);
     this.buffer.flushTentative();
     this.error = e; this.wantListening = false; this.clearRestart();
     this.go('FAIL');
@@ -170,5 +171,5 @@ export class VoiceSessionController {
 
   private mkErr(code: SpeechError['code'], message: string, fatal: boolean): SpeechError { return { code, message, fatal }; }
 
-  dispose() { this.clearRestart(); this.wantListening = false; this.unsubs.forEach((u) => u()); this.unsubs = []; this.listeners.clear(); this.provider.stopRecording().catch(() => {}); }
+  dispose() { this.clearRestart(); this.wantListening = false; this.unsubs.forEach((u) => u()); this.unsubs = []; this.listeners.clear(); this.provider.stopRecording().catch(() => {}); setTimeout(() => this.provider.release?.(), 1500); }
 }

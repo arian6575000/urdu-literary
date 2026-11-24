@@ -8,7 +8,7 @@ assert.equal(normalizeUrdu('ہے'), normalizeUrdu('هے')); // heh forms
 assert.equal(countWords('  دلِ ناداں  تجھے ہوا کیا ہے '), 6);
 assert.equal(countWords(''), 0);
 assert.equal(countChars('ا ب\nج'), 3);
-assert.equal(urduDigits('2026'), '۲۰۲۶');
+assert.equal(urduDigits('2026'), '2026'); // plain English digits
 assert.deepEqual(splitCouplets('الف\nب\n\nج\nد\n\n\nه'), [['الف', 'ب'], ['ج', 'د'], ['ه']]);
 assert.equal(firstLine('\n\n  پہلی سطر \nدوسری'), 'پہلی سطر');
 assert.notEqual(hashText('a'), hashText('b'));
