@@ -38,3 +38,6 @@ export const useSettings = create<SettingsState>((setState, get) => ({
 }));
 // `get` kept for future selectors
 void ((): void => undefined);
+
+/** A writing's author, falling back to the default author set once in Settings, so the name is filled in everywhere automatically. */
+export const authorOf = (w: { author?: string | null }): string => (w.author ?? '').trim() || (useSettings.getState().defaultAuthor ?? '').trim();

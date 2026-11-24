@@ -10,12 +10,12 @@ export interface Palette {
 }
 
 export const LIGHT: Palette = {
-  bg: '#FAF5EA', surface: '#FFFFFF', surfaceAlt: '#F4EEE0', tint: '#F1EBFF',
+  bg: '#F4F2FA', surface: '#FFFFFF', surfaceAlt: '#ECE9F6', tint: '#EDE7FF',
   primary: '#6A3DD1', primarySoft: 'rgba(106,61,209,0.12)', onPrimary: '#FFFFFF',
   secondary: '#077A7B', secondarySoft: 'rgba(7,122,123,0.13)', onSecondary: '#FFFFFF',
   accent: '#C73E0A', accentSoft: 'rgba(199,62,10,0.12)', onAccent: '#FFFFFF',
   gold: '#F2B01E', goldSoft: 'rgba(242,176,30,0.22)', sky: '#3D9BE9', mint: '#35C28F',
-  text: '#2B2540', muted: '#6D6785', line: 'rgba(43,37,64,0.11)', danger: '#D13A3A', success: '#17875A', white: '#FFFFFF', ink: '#1B1730', scrim: 'rgba(20,16,36,0.5)',
+  text: '#2B2540', muted: '#6D6785', line: 'rgba(43,37,64,0.13)', danger: '#D13A3A', success: '#17875A', white: '#FFFFFF', ink: '#1B1730', scrim: 'rgba(20,16,36,0.5)',
 };
 
 export const DARK: Palette = {
