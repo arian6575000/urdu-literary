@@ -14,6 +14,8 @@ import { BASE_DESIGN, newDesign } from '../../features/card/templates';
 import { CardCanvas } from '../../features/card/CardCanvas';
 import { CardProvider } from '../../features/card/context';
 import { createCardStore, isDirty, type CardStore } from '../../features/card/store';
+import { EASY_STEPS, EasyBody, BigButton } from '../../features/card/SimplePanel';
+import { useSettings } from '../../stores/settings';
 import { BackgroundPanel, ColorPanel, DecorPanel, DesignPanel, ImagePanel, TextPanel } from '../../features/card/panels';
 import { ensureAllCardFonts } from '../../features/card/fontLoader';
 import { CS, type CardTab } from '../../features/card/strings';
@@ -76,6 +78,8 @@ function Workspace({ id, store }: { id: string; store: CardStore }) {
   const exportRef = useRef<React.ComponentRef<typeof View>>(null);
   const readyRes = useRef<(() => void) | null>(null);
   const bypass = useRef(false);
+  const easy = useSettings((x) => x.cardEasy);
+  const [step, setStep] = useState(0);
 
   // never lose unsaved work by accident (back button, gesture, header arrow)
   useEffect(() => (nav as any).addListener('beforeRemove', (e: any) => {
@@ -92,7 +96,7 @@ function Workspace({ id, store }: { id: string; store: CardStore }) {
   const scale = zoom ? Math.min(fit * 1.8, 3.2) : fit;
 
   const panelH = mode === 'closed' ? 0 : mode === 'half' ? Math.max(200, Math.min(0.36 * H, 330)) : Math.max(300, 0.62 * H);
-  const onSelect = useCallback((e: ElementId) => { setSel(e); setTab(TAB_OF[e]); setMode((m) => (m === 'closed' ? 'half' : m)); }, []);
+  const onSelect = useCallback((e: ElementId) => { if (easy) { setStep(e === 'bg' ? 2 : 1); return; } setSel(e); setTab(TAB_OF[e]); setMode((m) => (m === 'closed' ? 'half' : m)); }, [easy]);
   const pickTab = (t: CardTab) => { if (t === tab) setMode((m) => (m === 'closed' ? 'half' : 'closed')); else { setTab(t); setMode((m) => (m === 'closed' ? 'half' : m)); } };
 
   const run = async (kind: 'share' | 'gallery') => {
@@ -124,8 +128,9 @@ function Workspace({ id, store }: { id: string; store: CardStore }) {
           </Pressable>
         )
       ) : null}
-      <View style={{ position: 'absolute', bottom: 8, alignSelf: 'center', backgroundColor: c.scrim, borderRadius: RADII.pill, paddingHorizontal: 12 }}><UText size={11} color="#FFFFFF" spacing={1.5}>{sel ? '' : CS.editHint}</UText></View>
-      <View style={{ position: 'absolute', top: 6, left: 8 }}><IconButton icon={zoom ? 'contract-outline' : 'expand-outline'} bg={c.surface} onPress={() => setZoom((z) => !z)} label={zoom ? CS.fit : CS.zoom} /></View>
+      {easy ? null : <View style={{ position: 'absolute', bottom: 8, alignSelf: 'center', backgroundColor: c.scrim, borderRadius: RADII.pill, paddingHorizontal: 12 }}><UText size={11} color="#FFFFFF" spacing={1.5}>{sel ? '' : CS.editHint}</UText></View>}
+      {easy ? null : <View style={{ position: 'absolute', top: 6, left: 8 }}><IconButton icon={zoom ? 'contract-outline' : 'expand-outline'} bg={c.surface} onPress={() => setZoom((z) => !z)} label={zoom ? CS.fit : CS.zoom} /></View>}
+      <View style={{ position: 'absolute', top: 8, right: 8 }}><Chip label={easy ? 'مزید اختیارات' : 'آسان انداز'} icon={easy ? 'options-outline' : 'happy-outline'} onPress={() => useSettings.getState().set('cardEasy', !easy)} /></View>
     </View>
   );
 
@@ -135,6 +140,31 @@ function Workspace({ id, store }: { id: string; store: CardStore }) {
       case 'bg': return <BackgroundPanel goImage={() => setTab('image')} />; case 'decor': return <DecorPanel />; default: return <ImagePanel />;
     }
   }, [tab]);
+
+  const last = step === EASY_STEPS.length - 1;
+  const easyTools = (
+    <View style={{ backgroundColor: c.bg, borderTopLeftRadius: wide ? 0 : RADII.xl, borderTopRightRadius: wide ? 0 : RADII.xl, borderTopWidth: 1, borderColor: c.line, paddingBottom: insets.bottom + 8, ...(wide ? { width: 420, borderTopWidth: 0, borderLeftWidth: 1 } : null) }}>
+      <Row gap={8} style={{ paddingHorizontal: 16, paddingTop: 12, justifyContent: 'space-between' }}>
+        <UText size={22} color={c.primary} spacing={1.7}>{`مرحلہ ${urduDigits(step + 1)} از ${urduDigits(EASY_STEPS.length)}: ${EASY_STEPS[step].title}`}</UText>
+      </Row>
+      <Row gap={6} style={{ paddingHorizontal: 16, paddingVertical: 6 }}>{EASY_STEPS.map((_, i) => <View key={i} style={{ flex: 1, height: 8, borderRadius: 4, backgroundColor: i <= step ? c.primary : c.line }} />)}</Row>
+      <ScrollView style={{ height: wide ? undefined : Math.max(170, Math.min(0.3 * H, 280)), flex: wide ? 1 : undefined }} keyboardShouldPersistTaps="handled" nestedScrollEnabled contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 8 }}>
+        <EasyBody step={step} />
+        {last ? (
+          <View style={{ gap: 10, marginTop: 12 }}>
+            <BigButton icon="share-social" label="دوستوں کو بھیجیں" busy={busy === 'share'} disabled={!!busy} onPress={() => run('share')} />
+            <BigButton tone="teal" icon="download" label="گیلری میں رکھیں" busy={busy === 'gallery'} disabled={!!busy} onPress={() => run('gallery')} />
+            <BigButton tone="soft" icon={dirty ? 'save' : 'checkmark-circle'} label={dirty ? 'ڈیزائن محفوظ کریں' : 'ڈیزائن محفوظ ہے'} onPress={save} />
+          </View>
+        ) : null}
+      </ScrollView>
+      <Row gap={10} style={{ paddingHorizontal: 16, paddingTop: 6 }}>
+        <BigButton flex tone="ghost" icon="chevron-forward" label="پیچھے" disabled={step === 0} onPress={() => setStep((x) => Math.max(0, x - 1))} />
+        <BigButton tone="soft" icon="arrow-undo" label="" disabled={!canUndo} onPress={() => store.getState().undo()} />
+        <BigButton flex icon="chevron-back" label="اگلا" disabled={last} onPress={() => setStep((x) => Math.min(EASY_STEPS.length - 1, x + 1))} />
+      </Row>
+    </View>
+  );
 
   const tools = (
     <View style={{ backgroundColor: c.bg, borderTopLeftRadius: wide ? 0 : RADII.xl, borderTopRightRadius: wide ? 0 : RADII.xl, borderTopWidth: 1, borderColor: c.line, paddingBottom: insets.bottom, ...(wide ? { width: 400, borderTopWidth: 0, borderLeftWidth: 1, flex: undefined } : null) }}>
@@ -164,9 +194,9 @@ function Workspace({ id, store }: { id: string; store: CardStore }) {
         <IconButton icon="share-outline" bg={c.primary} color={c.onPrimary} label={CS.export} onPress={() => setShowExport(true)} />
       </Row>
       <View style={{ flex: 1, flexDirection: wide ? ROW : 'column' }}>
-        {wide ? tools : null}
+        {wide ? (easy ? easyTools : tools) : null}
         {preview}
-        {wide ? null : tools}
+        {wide ? null : (easy ? easyTools : tools)}
       </View>
 
       <Sheet visible={showExport} onClose={() => !busy && setShowExport(false)} title={CS.export}>

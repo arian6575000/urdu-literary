@@ -65,8 +65,7 @@
         "expo-image-picker",
         {
           "photosPermission": "کارڈ کے پس منظر کے لیے تصویر چننے کی اجازت درکار ہے",
-          "cameraPermission": false,
-          "microphonePermission": false
+          "cameraPermission": false
         }
       ],
       [
