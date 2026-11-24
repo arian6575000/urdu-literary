@@ -1,7 +1,7 @@
 // Pure text helpers (no React Native imports so they run in node tests).
 
 /** Urdu/Arabic combining marks (zabar, zer, pesh, shadda...) — stripped for search only, never from stored text. */
-const MARKS = /[ؐ-ًؚ-ٰٟۖ-ۭ‌‍‎‏]/g;
+const MARKS = /[ؐ-ًؚ-ٰٟۖ-ۭ‌‍‎‏]/g;
 
 /** Normalise Urdu text for searching: remove diacritics and unify look-alike letters (Arabic ي/ك/ه vs Urdu ی/ک/ہ). */
 export function normalizeUrdu(s: string): string {
@@ -32,8 +32,8 @@ export function hashText(s: string): string {
   return (h >>> 0).toString(16);
 }
 
-/** Convert ASCII digits to Eastern Arabic-Indic (Urdu) digits for display. */
-export const urduDigits = (s: string | number) => String(s).replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[+d]);
+/** Numbers are shown as plain English digits (123), as requested. Kept as a function so every call site stays unchanged. */
+export const urduDigits = (s: string | number) => String(s);
 
 const MONTHS = ['جنوری', 'فروری', 'مارچ', 'اپریل', 'مئی', 'جون', 'جولائی', 'اگست', 'ستمبر', 'اکتوبر', 'نومبر', 'دسمبر'];
 export function formatDate(ts: number): string {

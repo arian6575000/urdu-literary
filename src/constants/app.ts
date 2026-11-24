@@ -4,5 +4,7 @@ export const APP_ID = 'urdu-literary-app';
 export const DB_NAME = 'urdu_literary.db';
 export const BACKUP_FORMAT = 'urdu-literary-backup';
 export const BACKUP_VERSION = 1;
-/** Standing company credit: shown in-app and in the footer of every PDF / print output. */
-export const COMPANY_CREDIT = 'RetailX Solution - 03286575000';
+/** Developer branding: shown in-app, under every writing, and in the footer of every PDF / text export. */
+export const DEVELOPER = 'Qayyum Bhatti';
+export const DEV_CREDIT = `Developed by ${DEVELOPER}`;
+export const COMPANY_CREDIT = DEV_CREDIT; // legacy name used by exporters
