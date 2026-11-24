@@ -7,10 +7,11 @@ import {RADII, SPACING} from '../../constants/theme';
 import { S } from '../../constants/strings';
 import { deleteWriting, getWriting, listVersions, restoreVersion, setFavorite } from '../../database/repositories/writings';
 import { useQuery } from '../../hooks/useAsync';
-import { useSettings } from '../../stores/settings';
+import { authorOf, useSettings } from '../../stores/settings';
 import { confirmDialog, toast, useUi } from '../../stores/ui';
 import { formatDate, formatTime, splitCouplets } from '../../utils/text';
 import { Button, Divider, Empty, Icon, IconButton, ListRow, Loading, Muted, Row, Screen, Sheet, UText } from '../../components/design-system';
+import { DevCredit } from '../../components/design-system/Text';
 
 // Screen 11 — Reading mode
 export default function Reader() {
@@ -50,7 +51,7 @@ export default function Reader() {
       <ScrollView contentContainerStyle={{ padding: SPACING.xl, paddingBottom: 40, gap: 6 }}>
         <Row gap={6} style={{ justifyContent: align === 'center' ? 'center' : 'flex-start' }}><Icon name={cat.icon} size={16} color={c.secondary} /><UText size={14} color={c.secondary}>{cat.name}</UText></Row>
         <UText size={readerSize + 10} color={c.primary} center={align === 'center'} spacing={1.8}>{w.title || S.untitled}</UText>
-        {w.author ? <UText size={16} color={c.muted} center={align === 'center'}>{w.author}</UText> : null}
+        {authorOf(w) ? <UText size={16} color={c.muted} center={align === 'center'}>{authorOf(w)}</UText> : null}
         <View style={{ height: 2, width: 64, backgroundColor: c.secondary, borderRadius: 1, alignSelf: align === 'center' ? 'center' : 'flex-end', marginVertical: 10 }} />
         {poetry
           ? splitCouplets(w.content).map((b, i) => (
@@ -60,6 +61,7 @@ export default function Reader() {
         <Divider />
         <Muted>{S.created}: {formatDate(w.created_at)} · {formatTime(w.created_at)}</Muted>
         <Muted>{S.updated}: {formatDate(w.updated_at)} · {formatTime(w.updated_at)}</Muted>
+        <DevCredit style={{ marginTop: 10 }} />
       </ScrollView>
 
       <Sheet visible={showVer} onClose={() => setShowVer(false)} title={S.versions}>

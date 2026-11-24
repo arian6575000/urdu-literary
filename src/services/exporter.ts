@@ -7,10 +7,13 @@ import { File, Paths } from 'expo-file-system';
 import { buildPdfHtml, type PdfOptions } from './pdf/html';
 import { logExport } from '../database/repositories/settings';
 import { COMPANY_CREDIT } from '../constants/app';
+import { authorOf } from '../stores/settings';
 import type { Writing } from '../types';
 
+const withAuthor = (list: Writing[]): Writing[] => list.map((w) => ({ ...w, author: authorOf(w) }));
+
 export function toPlainText(list: Writing[], withCredit = false): string {
-  const t = list.map((w) => `${w.title ? w.title + '\n' : ''}${w.author ? '— ' + w.author + '\n' : ''}\n${w.content}`.trim()).join('\n\n———\n\n');
+  const t = withAuthor(list).map((w) => `${w.title ? w.title + '\n' : ''}${w.author ? '— ' + w.author + '\n' : ''}\n${w.content}`.trim()).join('\n\n———\n\n');
   return withCredit ? `${t}\n\n${COMPANY_CREDIT}` : t;
 }
 
@@ -43,7 +46,7 @@ async function loadFontBase64(): Promise<string> {
 
 /** Real A4 PDF: HTML with the font embedded as base64, so Urdu is shaped by the WebView text engine (RTL + ligatures). */
 export async function exportPdf(list: Writing[], o: Omit<PdfOptions, 'fontBase64' | 'fontFormat'>): Promise<string> {
-  const html = buildPdfHtml(list, { ...o, fontBase64: await loadFontBase64(), fontFormat: 'truetype' });
+  const html = buildPdfHtml(withAuthor(list), { ...o, fontBase64: await loadFontBase64(), fontFormat: 'truetype' });
   const r = await Print.printToFileAsync({ html, width: 595, height: 842 });
   await logExport(list.map((w) => w.id), 'pdf');
   await shareFile(r.uri, 'application/pdf', 'PDF');

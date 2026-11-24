@@ -10,6 +10,7 @@ import { useTheme } from '../../hooks/useTheme';
 import { useSettings } from '../../stores/settings';
 import { urduDigits } from '../../utils/text';
 import { Card, Divider, Field, ListRow, Muted, Screen, SectionTitle, Segmented, SwitchRow, UText } from '../../components/design-system';
+import { DevCredit } from '../../components/design-system/Text';
 
 // "مزید" — settings, organised in clear sections
 export default function More() {
@@ -65,7 +66,7 @@ export default function More() {
         <Divider />
         <ListRow icon="bug-outline" tone={c.muted} title={S.diagnostics} sub={S.diagnosticsHint} onPress={() => router.push('/diagnostics')} />
       </Card>
-      <Muted center>{COMPANY_CREDIT}</Muted>
+      <DevCredit style={{ marginTop: 4 }} />
     </Screen>
   );
 }
