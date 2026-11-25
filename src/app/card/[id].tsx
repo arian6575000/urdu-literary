@@ -19,6 +19,10 @@ import { authorOf, useSettings } from '../../stores/settings';
 import { BackgroundPanel, ColorPanel, DecorPanel, DesignPanel, ImagePanel, TextPanel } from '../../features/card/panels';
 import { ensureAllCardFonts } from '../../features/card/fontLoader';
 import { CS, type CardTab } from '../../features/card/strings';
+import { StudioPanel, type StudioTab } from '../../features/card/studio/StudioPanel';
+import { ST } from '../../features/card/studio/strings';
+import { clampPosition, snapMove } from '../../features/card/elements';
+import type { ElementTools } from '../../features/card/ElementLayer';
 import { canvasSize, exportPixels, type ElementId } from '../../features/card/types';
 import { captureCard, saveCardToGallery, shareCardImage, type ImageFormat } from '../../services/cardExport';
 
@@ -80,6 +84,27 @@ function Workspace({ id, store }: { id: string; store: CardStore }) {
   const bypass = useRef(false);
   const easy = useSettings((x) => x.cardEasy);
   const [step, setStep] = useState(0);
+  const [studioOn, setStudioOn] = useState(false);
+  const studio = !easy && studioOn;
+  const [stTab, setStTab] = useState<StudioTab>('add');
+  const [selEl, setSelEl] = useState<string | null>(null);
+  const [guides, setGuides] = useState<{ v: boolean; h: boolean } | undefined>(undefined);
+  const touched = useRef(0); // web emits a click after a drag/tap on an element; it must not clear the selection
+  const pickEl = useCallback((eid: string) => { touched.current = Date.now(); setSelEl(eid); setStTab('edit'); setMode((m) => (m === 'closed' ? 'half' : m)); }, []);
+  const elementTools = useMemo<ElementTools | undefined>(() => {
+    if (!studio) return undefined;
+    const cv = canvasSize(store.getState().design.ratio);
+    const el = (id: string) => store.getState().design.elements.find((x) => x.id === id);
+    return {
+      guides,
+      onMove: (id, x, y) => { const e = el(id); if (!e) return; const sn = snapMove(e, x, y, cv.w, cv.h); const p = clampPosition(e, sn.x, sn.y, cv.w, cv.h); setGuides(sn.guides); store.getState().patchElement(id, { x: p.x, y: p.y }, `${id}:move`); },
+      onResize: (id, b) => store.getState().patchElement(id, b, `${id}:resize`),
+      onRotate: (id, deg) => store.getState().patchElement(id, { rotation: deg }, `${id}:rotate`),
+      onGestureEnd: () => { touched.current = Date.now(); setGuides(undefined); },
+    };
+  }, [studio, store, guides]);
+  const selElExists = useStore(store, (s) => !!selEl && s.design.elements.some((e) => e.id === selEl));
+  useEffect(() => { if (selEl && !selElExists) setSelEl(null); }, [selEl, selElExists]);
 
   // never lose unsaved work by accident (back button, gesture, header arrow)
   useEffect(() => (nav as any).addListener('beforeRemove', (e: any) => {
@@ -117,20 +142,26 @@ function Workspace({ id, store }: { id: string; store: CardStore }) {
         zoom ? (
           <ScrollView contentContainerStyle={{ padding: pad, alignItems: 'center', justifyContent: 'center', minHeight: box.h }} showsVerticalScrollIndicator={false}>
             <ScrollView horizontal contentContainerStyle={{ minWidth: box.w - pad * 2, alignItems: 'center', justifyContent: 'center' }} showsHorizontalScrollIndicator={false}>
-              <CardCanvas design={design} scale={scale} selected={sel} onSelect={onSelect} />
+              <CardCanvas design={design} scale={scale} selected={studio ? null : sel} onSelect={studio ? undefined : onSelect} selectedElement={studio ? selEl : null} onSelectElement={studio ? pickEl : undefined} elementTools={elementTools} />
             </ScrollView>
           </ScrollView>
         ) : (
-          <Pressable style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }} onPress={() => setSel(null)} accessibilityLabel={CS.editHint}>
+          <Pressable style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }} onPress={() => { if (Date.now() - touched.current < 400) return; setSel(null); setSelEl(null); }} accessibilityLabel={CS.editHint}>
             <View style={{ shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 6, borderRadius: design.radius * scale }}>
-              <CardCanvas design={design} scale={scale} selected={sel} onSelect={onSelect} />
+              <CardCanvas design={design} scale={scale} selected={studio ? null : sel} onSelect={studio ? undefined : onSelect} selectedElement={studio ? selEl : null} onSelectElement={studio ? pickEl : undefined} elementTools={elementTools} />
             </View>
           </Pressable>
         )
       ) : null}
-      {easy ? null : <View style={{ position: 'absolute', bottom: 8, alignSelf: 'center', backgroundColor: c.scrim, borderRadius: RADII.pill, paddingHorizontal: 12 }}><UText size={11} color="#FFFFFF" spacing={1.5}>{sel ? '' : CS.editHint}</UText></View>}
+      {easy || studio ? null : <View style={{ position: 'absolute', bottom: 8, alignSelf: 'center', backgroundColor: c.scrim, borderRadius: RADII.pill, paddingHorizontal: 12 }}><UText size={11} color="#FFFFFF" spacing={1.5}>{studio || sel ? '' : CS.editHint}</UText></View>}
       {easy ? null : <View style={{ position: 'absolute', top: 6, left: 8 }}><IconButton icon={zoom ? 'contract-outline' : 'expand-outline'} bg={c.surface} onPress={() => setZoom((z) => !z)} label={zoom ? CS.fit : CS.zoom} /></View>}
-      <View style={{ position: 'absolute', top: 8, right: 8 }}><Chip label={easy ? 'مزید اختیارات' : 'آسان انداز'} icon={easy ? 'options-outline' : 'happy-outline'} onPress={() => useSettings.getState().set('cardEasy', !easy)} /></View>
+      <View style={{ position: 'absolute', top: 8, right: 8 }}>
+        <Row gap={6}>
+          <Chip label={ST.mode.easy} icon="happy-outline" active={easy} onPress={() => useSettings.getState().set('cardEasy', true)} />
+          <Chip label={ST.mode.more} icon="options-outline" active={!easy && !studioOn} onPress={() => { useSettings.getState().set('cardEasy', false); setStudioOn(false); }} />
+          <Chip label={ST.mode.studio} icon="color-wand-outline" active={studio} onPress={() => { useSettings.getState().set('cardEasy', false); setStudioOn(true); setMode((m) => (m === 'closed' ? 'half' : m)); }} />
+        </Row>
+      </View>
     </View>
   );
 
@@ -166,6 +197,13 @@ function Workspace({ id, store }: { id: string; store: CardStore }) {
     </View>
   );
 
+  const studioTools = (
+    <View style={{ backgroundColor: c.bg, borderTopLeftRadius: wide ? 0 : RADII.xl, borderTopRightRadius: wide ? 0 : RADII.xl, borderTopWidth: 1, borderColor: c.line, paddingBottom: insets.bottom, ...(wide ? { width: 400, borderTopWidth: 0, borderLeftWidth: 1 } : null) }}>
+      {!wide ? <Pressable accessibilityRole="button" accessibilityLabel="پینل" onPress={() => setMode((m) => (m === 'full' ? 'half' : 'full'))} style={{ alignItems: 'center', paddingVertical: 6 }}><View style={{ width: 44, height: 5, borderRadius: 3, backgroundColor: c.line }} /></Pressable> : null}
+      <StudioPanel tab={stTab} setTab={setStTab} selId={selEl} setSelId={setSelEl} height={wide ? Math.max(300, H - 200) : Math.max(180, panelH || 200)} />
+    </View>
+  );
+
   const tools = (
     <View style={{ backgroundColor: c.bg, borderTopLeftRadius: wide ? 0 : RADII.xl, borderTopRightRadius: wide ? 0 : RADII.xl, borderTopWidth: 1, borderColor: c.line, paddingBottom: insets.bottom, ...(wide ? { width: 400, borderTopWidth: 0, borderLeftWidth: 1, flex: undefined } : null) }}>
       {!wide ? <Pressable accessibilityRole="button" accessibilityLabel="پینل" onPress={() => setMode((m) => (m === 'full' ? 'half' : 'full'))} style={{ alignItems: 'center', paddingVertical: 6 }}><View style={{ width: 44, height: 5, borderRadius: 3, backgroundColor: c.line }} /></Pressable> : null}
@@ -194,9 +232,9 @@ function Workspace({ id, store }: { id: string; store: CardStore }) {
         <IconButton icon="share-outline" bg={c.primary} color={c.onPrimary} label={CS.export} onPress={() => setShowExport(true)} />
       </Row>
       <View style={{ flex: 1, flexDirection: wide ? ROW : 'column' }}>
-        {wide ? (easy ? easyTools : tools) : null}
+        {wide ? (easy ? easyTools : studio ? studioTools : tools) : null}
         {preview}
-        {wide ? null : (easy ? easyTools : tools)}
+        {wide ? null : (easy ? easyTools : studio ? studioTools : tools)}
       </View>
 
       <Sheet visible={showExport} onClose={() => !busy && setShowExport(false)} title={CS.export}>
