@@ -1,3 +1,4 @@
+import type { DesignElement } from './elements';
 // The card design is ONE plain, serialisable object — the single source of truth for the preview, thumbnails, export and persistence.
 export type FontId = 'alvi' | 'nastaliq' | 'naskh' | 'amiri';
 export type Ratio = '1:1' | '4:5' | '9:16' | '16:9';
@@ -17,7 +18,9 @@ export type ElementId = 'text' | 'title' | 'poet' | 'frame' | 'bg' | 'image';
 export interface CardImage { uri: string | null; mode: ImageMode; opacity: number; zoom: number; x: number; y: number; dim: number }
 
 export interface CardDesign {
-  v: 1; templateId: string; ratio: Ratio;
+  /** 2 = scene-graph document: the fields below are the base layer (Easy Mode), `elements` are extra objects drawn above it. v1 saves migrate on load. */
+  v: 2; templateId: string; ratio: Ratio;
+  elements: DesignElement[];
   text: string; title: string; poet: string; showTitle: boolean; showPoet: boolean;
   font: FontId; fontSize: number; lineHeight: number; letterSpacing: number; align: Align; textColor: string; accent: string; textShadow: boolean;
   bg: BgSpec; pattern: PatternId; patternOpacity: number; texture: TextureId; decor: DecorId;

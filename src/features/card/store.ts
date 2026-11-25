@@ -1,6 +1,7 @@
 import { createStore, type StoreApi } from 'zustand/vanilla';
 import { mix, readableOn, contrast } from '../../utils/color';
 import { BASE_DESIGN, applyTemplate, newDesign } from './templates';
+import { addEl, duplicateEl, groupEls, moveEl, removeEl, reorderEl, ungroupEls, updateEl, type DesignElement, type Reorder } from './elements';
 import type { BgSpec, CardDesign } from './types';
 
 /**
@@ -13,6 +14,15 @@ export interface CardState {
   setBg(bg: BgSpec, key?: string): void;
   setTemplate(id: string): void;
   resetDesign(): void;
+  /** Scene-graph edits (all undoable; edits sharing a `key` coalesce like sliders). Locked elements ignore everything except lock/visible/name. */
+  addElement(el: DesignElement): void;
+  patchElement(id: string, patch: Partial<DesignElement>, key?: string): void;
+  removeElement(id: string): void;
+  duplicateElement(id: string): string | null;
+  reorderElement(id: string, op: Reorder): void;
+  moveElement(id: string, index: number): void;
+  groupElements(ids: string[]): string | null;
+  ungroupElements(groupId: string): void;
   undo(): void; redo(): void; markSaved(): void;
 }
 export type CardStore = StoreApi<CardState>;
@@ -38,7 +48,15 @@ export function createCardStore(initial: CardDesign, now: () => number = Date.no
         commit({ ...d, bg, textColor }, key);
       },
       setTemplate: (id) => commit(applyTemplate(get().design, id)),
-      resetDesign: () => { const d = get().design; commit(newDesign({ text: d.text, title: d.title, poet: d.poet })); },
+      resetDesign: () => { const d = get().design; commit({ ...newDesign({ text: d.text, title: d.title, poet: d.poet }), elements: d.elements }); }, // the look resets, the user's own elements stay
+      addElement: (el) => { const d = get().design; const els = addEl(d.elements, el); if (els !== d.elements) commit({ ...d, elements: els }); },
+      patchElement: (id, patch, key) => { const d = get().design; const els = updateEl(d.elements, id, patch); if (els.some((e, i) => e !== d.elements[i])) commit({ ...d, elements: els }, key); },
+      removeElement: (id) => { const d = get().design; const e = d.elements.find((x) => x.id === id); if (e && !e.locked) commit({ ...d, elements: removeEl(d.elements, id) }); },
+      duplicateElement: (id) => { const d = get().design; const r = duplicateEl(d.elements, id); if (r.id) commit({ ...d, elements: r.list }); return r.id; },
+      reorderElement: (id, op) => { const d = get().design; const els = reorderEl(d.elements, id, op); if (els !== d.elements) commit({ ...d, elements: els }); },
+      moveElement: (id, index) => { const d = get().design; const els = moveEl(d.elements, id, index); if (els !== d.elements) commit({ ...d, elements: els }); },
+      groupElements: (ids) => { const d = get().design; const r = groupEls(d.elements, ids); if (r.groupId) commit({ ...d, elements: r.list }); return r.groupId; },
+      ungroupElements: (gid) => { const d = get().design; commit({ ...d, elements: ungroupEls(d.elements, gid) }); },
       undo: () => { const s = get(); if (!s.past.length) return; set({ design: s.past[s.past.length - 1], past: s.past.slice(0, -1), future: [s.design, ...s.future], lastKey: null }); },
       redo: () => { const s = get(); if (!s.future.length) return; set({ design: s.future[0], past: [...s.past, s.design], future: s.future.slice(1), lastKey: null }); },
       markSaved: () => set({ savedJson: JSON.stringify(get().design) }),
