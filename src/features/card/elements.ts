@@ -171,3 +171,48 @@ export function starPoints(w: number, h: number, inner = 0.45): string {
   }
   return pts.join(' ');
 }
+
+// ---------- interactive geometry (drag / resize / rotate) — pure, so it is unit-tested
+export const MIN_SIZE = 16;
+const rad = (deg: number) => (deg * Math.PI) / 180;
+
+/** Snap an element's centre to the canvas centre lines when within `tol` design px. `guides` tells the UI which lines to draw. */
+export function snapMove(e: { w: number; h: number }, x: number, y: number, cw: number, ch: number, tol = 5): { x: number; y: number; guides: { v: boolean; h: boolean } } {
+  let nx = x, ny = y; const guides = { v: false, h: false };
+  if (Math.abs(x + e.w / 2 - cw / 2) <= tol) { nx = cw / 2 - e.w / 2; guides.v = true; }
+  if (Math.abs(y + e.h / 2 - ch / 2) <= tol) { ny = ch / 2 - e.h / 2; guides.h = true; }
+  return { x: nx, y: ny, guides };
+}
+
+/**
+ * Drag the bottom-right corner handle. (dx, dy) is the pointer movement in design px on screen; it is projected onto the element's
+ * own (rotated) axes, and the opposite (top-left) corner stays fixed on screen, so rotated elements do not jump.
+ */
+export function resizeFromCorner(e: { x: number; y: number; w: number; h: number; rotation: number }, dx: number, dy: number, keepAspect = false): { x: number; y: number; w: number; h: number } {
+  const t = rad(e.rotation), cos = Math.cos(t), sin = Math.sin(t);
+  const lx = dx * cos + dy * sin, ly = -dx * sin + dy * cos;
+  let w = Math.max(MIN_SIZE, e.w + lx), h = Math.max(MIN_SIZE, e.h + ly);
+  if (keepAspect) { const s = Math.max(w / e.w, h / e.h, MIN_SIZE / e.w, MIN_SIZE / e.h); w = e.w * s; h = e.h * s; }
+  const dw = (w - e.w) / 2, dh = (h - e.h) / 2;
+  const cx = e.x + e.w / 2 + dw * cos - dh * sin, cy = e.y + e.h / 2 + dw * sin + dh * cos;
+  return { x: cx - w / 2, y: cy - h / 2, w, h };
+}
+
+/**
+ * Rotation from the round handle that sits `gap` design px above the element's top edge. The pointer moved by (dx, dy) from the handle's
+ * start position; the new angle points from the element centre to the pointer. Snaps to multiples of 15° when within 4°.
+ */
+export function rotationFromHandle(e: { w: number; h: number; rotation: number }, dx: number, dy: number, gap: number, snap = true): number {
+  const t = rad(e.rotation), hy = -(e.h / 2 + gap);
+  const px = -Math.sin(t) * hy + dx, py = Math.cos(t) * hy + dy;
+  let deg = (Math.atan2(py, px) * 180) / Math.PI + 90;
+  deg = ((((deg + 180) % 360) + 360) % 360) - 180; // (-180, 180]
+  if (deg <= -180) deg = 180;
+  if (snap) { const m = Math.round(deg / 15) * 15; if (Math.abs(deg - m) <= 4) deg = m; }
+  return Math.round(deg * 10) / 10;
+}
+
+/** Keep at least a sliver of the element on the canvas so it cannot be dragged away and lost. */
+export const clampPosition = (e: { w: number; h: number }, x: number, y: number, cw: number, ch: number, keep = 24) => ({
+  x: Math.max(keep - e.w, Math.min(cw - keep, x)), y: Math.max(keep - e.h, Math.min(ch - keep, y)),
+});
