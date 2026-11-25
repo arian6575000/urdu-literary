@@ -58,6 +58,6 @@
     "fonts": "node scripts/copy-font.mjs",
     "prestart": "node scripts/copy-font.mjs",
     "typecheck": "tsc --noEmit",
-    "test": "tsx tests/text.test.ts && tsx tests/transcript.test.ts && tsx tests/correction.test.ts && tsx tests/database.test.ts && tsx tests/backup.test.ts && tsx tests/pdf.test.ts && tsx tests/color.test.ts && tsx tests/card.test.ts && tsx tests/collections.test.ts"
+    "test": "tsx tests/text.test.ts && tsx tests/transcript.test.ts && tsx tests/correction.test.ts && tsx tests/database.test.ts && tsx tests/backup.test.ts && tsx tests/pdf.test.ts && tsx tests/color.test.ts && tsx tests/card.test.ts && tsx tests/elements.test.ts && tsx tests/collections.test.ts"
   }
 }

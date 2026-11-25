@@ -4,16 +4,17 @@ import { Art } from './CardArt';
 import { buildLayers, dividerPrims, motifPrims, motifReserve, motifSpots } from './art';
 import { fontFamily } from './fonts';
 import { DEV_CREDIT } from '../../constants/app';
+import { ElementLayer } from './ElementLayer';
 import { canvasSize, type CardDesign, type ElementId } from './types';
 
 const HILITE = '#7C5CFF';
-interface Props { design: CardDesign; scale: number; selected?: ElementId | null; onSelect?: (e: ElementId) => void; onReady?: () => void }
+interface Props { design: CardDesign; scale: number; selected?: ElementId | null; onSelect?: (e: ElementId) => void; onReady?: () => void; selectedElement?: string | null; onSelectElement?: (id: string) => void }
 
 /**
  * Renders one card. Used for the live preview (scale ≈ 1), the template thumbnails (scale ≈ 0.2) and the PNG export.
  * Every size is multiplied by `scale`, so text stays crisp at any size and the layout is identical everywhere.
  */
-export const CardCanvas = React.memo(function CardCanvas({ design: d, scale, selected, onSelect, onReady }: Props) {
+export const CardCanvas = React.memo(function CardCanvas({ design: d, scale, selected, onSelect, onReady, selectedElement, onSelectElement }: Props) {
   const { w, h } = canvasSize(d.ratio);
   const u = (n: number) => n * scale;
   const layers = useMemo(() => buildLayers(d, w, h), [d.bg, d.pattern, d.patternOpacity, d.texture, d.decor, d.accent, d.textColor, d.frame, d.ratio]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -76,6 +77,7 @@ export const CardCanvas = React.memo(function CardCanvas({ design: d, scale, sel
           )}
         </View>
       </View>
+      <ElementLayer elements={d.elements} scale={scale} selectedId={selectedElement} onSelect={onSelectElement} />
       <View pointerEvents="none" style={{ position: 'absolute', left: 0, right: 0, bottom: u(6), alignItems: 'center' }}><Text style={{ fontSize: u(11), color: d.accent, opacity: 0.7, letterSpacing: u(0.4), writingDirection: 'ltr' }}>{DEV_CREDIT}</Text></View>
       <View pointerEvents="none" style={{ position: 'absolute' }}><Art prims={layers.front} w={w} h={h} scale={scale} /></View>
       {onSelect && d.frame !== 'none' ? <Pressable accessibilityLabel="سجاوٹ" onPress={() => onSelect('frame')} style={{ position: 'absolute', left: 0, top: 0, width: u(w), height: u(22), }} /> : null}
