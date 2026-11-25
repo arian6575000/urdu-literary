@@ -1,7 +1,8 @@
 import type { CardDesign } from './types';
+import { sanitizeElements } from './elements';
 
 export const BASE_DESIGN: CardDesign = {
-  v: 1, templateId: 'classic', ratio: '4:5',
+  v: 2, templateId: 'classic', ratio: '4:5', elements: [],
   text: '', title: '', poet: '', showTitle: false, showPoet: true,
   font: 'alvi', fontSize: 26, lineHeight: 2.0, letterSpacing: 0, align: 'center', textColor: '#3B2A1A', accent: '#B8860B', textShadow: false,
   bg: { kind: 'solid', color: '#F7F0DF' }, pattern: 'none', patternOpacity: 0.14, texture: 'none', decor: 'none',
@@ -30,7 +31,7 @@ export const templateById = (id: string) => TEMPLATES.find((t) => t.id === id);
 export function applyTemplate(cur: CardDesign, id: string): CardDesign {
   const t = templateById(id);
   if (!t) return cur;
-  return { ...BASE_DESIGN, ...t.patch, templateId: id, ratio: cur.ratio, text: cur.text, title: cur.title, poet: cur.poet, showTitle: cur.showTitle, showPoet: cur.showPoet, image: cur.image, v: 1 };
+  return { ...BASE_DESIGN, ...t.patch, templateId: id, ratio: cur.ratio, text: cur.text, title: cur.title, poet: cur.poet, showTitle: cur.showTitle, showPoet: cur.showPoet, image: cur.image, elements: cur.elements ?? [], v: 2 };
 }
 
 /** Fresh design for a writing's text. */
@@ -49,6 +50,7 @@ export function sanitizeDesign(raw: unknown): CardDesign | null {
   d.fontSize = num(d.fontSize, 12, 80, BASE_DESIGN.fontSize); d.lineHeight = num(d.lineHeight, 1.2, 3.6, BASE_DESIGN.lineHeight);
   d.letterSpacing = num(d.letterSpacing, -1, 6, 0); d.padding = num(d.padding, 0, 120, BASE_DESIGN.padding); d.radius = num(d.radius, 0, 80, 0);
   d.offsetX = num(d.offsetX, -200, 200, 0); d.offsetY = num(d.offsetY, -300, 300, 0); d.patternOpacity = num(d.patternOpacity, 0, 1, 0.14);
-  d.v = 1;
+  d.elements = sanitizeElements(raw.elements); // v1 saves have none; unknown element kinds are kept, never dropped
+  d.v = 2;
   return d;
 }
