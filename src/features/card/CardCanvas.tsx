@@ -3,6 +3,7 @@ import { Image, Pressable, Text, View } from 'react-native';
 import { Art } from './CardArt';
 import { buildLayers, dividerPrims, motifPrims, motifReserve, motifSpots } from './art';
 import { fontFamily } from './fonts';
+import { DEV_CREDIT } from '../../constants/app';
 import { canvasSize, type CardDesign, type ElementId } from './types';
 
 const HILITE = '#7C5CFF';
@@ -75,6 +76,7 @@ export const CardCanvas = React.memo(function CardCanvas({ design: d, scale, sel
           )}
         </View>
       </View>
+      <View pointerEvents="none" style={{ position: 'absolute', left: 0, right: 0, bottom: u(6), alignItems: 'center' }}><Text style={{ fontSize: u(11), color: d.accent, opacity: 0.7, letterSpacing: u(0.4), writingDirection: 'ltr' }}>{DEV_CREDIT}</Text></View>
       <View pointerEvents="none" style={{ position: 'absolute' }}><Art prims={layers.front} w={w} h={h} scale={scale} /></View>
       {onSelect && d.frame !== 'none' ? <Pressable accessibilityLabel="سجاوٹ" onPress={() => onSelect('frame')} style={{ position: 'absolute', left: 0, top: 0, width: u(w), height: u(22), }} /> : null}
       {motifs.map((m, i) => <View key={i} pointerEvents="none" style={{ position: 'absolute', left: u(m.x), top: u(m.y), width: u(m.s), height: u(m.s), transform: [{ rotate: `${m.r}deg` }] }}><Art prims={m.prims} w={m.s} h={m.s} scale={scale} /></View>)}

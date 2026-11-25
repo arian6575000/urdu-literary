@@ -49,7 +49,6 @@ function MiniWriting({ w }: { w: Writing }) {
         <UText size={12} color={c.muted} spacing={1.4}>{formatDate(w.updated_at)}</UText>
         {author ? <UText size={13} color={c.secondary} lines={1} spacing={1.5}>{author}</UText> : null}
       </Row>
-      <DevCredit align="left" />
     </Pressable>
   );
 }
@@ -73,7 +72,7 @@ export default function Home() {
       <ScrollView contentContainerStyle={{ padding: SPACING.lg, paddingBottom: 32, gap: SPACING.md }} showsVerticalScrollIndicator={false}>
         <GradientCard colors={g.hero} style={{ paddingVertical: 18 }}>
           <Row style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <View style={{ flex: 1 }}>
+            <View style={{ flex: 1, alignItems: 'flex-end' }}>
               <UText size={15} color="rgba(255,255,255,0.85)">{greeting()}</UText>
               <UText size={30} color="#FFFFFF" spacing={1.7}>{APP_NAME}</UText>
               <UText size={15} color="rgba(255,255,255,0.9)">{S.homeSub}</UText>

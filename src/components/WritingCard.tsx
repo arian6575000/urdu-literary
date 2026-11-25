@@ -7,7 +7,6 @@ import { excerpt, formatDate, splitCouplets } from '../utils/text';
 import type { Writing } from '../types';
 import { useTheme } from '../hooks/useTheme';
 import { Icon, UText } from './design-system';
-import { DevCredit } from './design-system/Text';
 import { authorOf } from '../stores/settings';
 
 export function preview(w: Writing, n = 110): string {
@@ -40,7 +39,6 @@ export const WritingCard = React.memo(function WritingCard({ w, grid, selecting,
       <View style={{ flex: grid ? 1 : 0 }} />
       {authorOf(w) ? <UText size={13} color={c.secondary} lines={1} spacing={1.6}>{authorOf(w)}</UText> : null}
       <UText size={12} color={c.muted} spacing={1.4}>{`${S.lastEdited}: ${formatDate(w.updated_at)}`}</UText>
-      <DevCredit align="left" style={{ marginTop: 2 }} />
     </Pressable>
   );
 });
