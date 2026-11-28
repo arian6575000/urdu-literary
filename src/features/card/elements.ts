@@ -2,6 +2,7 @@
 // The legacy single-text fields of CardDesign stay the "base layer" (what Easy Mode edits); `elements` are extra, independent
 // objects drawn ABOVE it. ARRAY ORDER IS THE Z-ORDER (first = bottom), so the layers panel always matches the rendered canvas.
 import { uid } from '../../utils/text';
+import { sanitizeRuns, type TextRun } from './runs';
 import type { Align, FontId } from './types';
 
 export const DOC_VERSION = 2;
@@ -17,6 +18,11 @@ interface Base {
 export interface TextElement extends Base {
   kind: 'text'; text: string; font: FontId; fontSize: number; lineHeight: number; letterSpacing: number;
   align: Align; dir: 'rtl' | 'ltr'; color: string; bgColor: string | null; padding: number; radius: number; shadow: boolean;
+  /** Text Studio: per-range colour / relative size / underline (see runs.ts). Empty = the whole box uses the element style. */
+  runs: TextRun[];
+  vAlign: 'top' | 'middle' | 'bottom';
+  /** Used when `shadow` is on: colour, blur radius and offset in design px (also how "glow" is made: offset 0, wide blur). */
+  shadowColor: string; shadowBlur: number; shadowX: number; shadowY: number;
 }
 export type ShapeKind = 'rect' | 'ellipse' | 'triangle' | 'diamond' | 'star';
 export interface ShapeElement extends Base { kind: 'shape'; shape: ShapeKind; fill: string | null; stroke: string | null; strokeWidth: number; radius: number }
@@ -36,7 +42,8 @@ type Over<T extends DesignElement> = Partial<Omit<T, 'kind'>>;
 
 export const makeText = (o: Over<TextElement> = {}): TextElement => ({
   ...base(240, 80), kind: 'text', text: '', font: 'alvi', fontSize: 24, lineHeight: 2, letterSpacing: 0, align: 'center', dir: 'rtl',
-  color: '#3B2A1A', bgColor: null, padding: 0, radius: 0, shadow: false, ...o,
+  color: '#3B2A1A', bgColor: null, padding: 0, radius: 0, shadow: false,
+  runs: [], vAlign: 'middle', shadowColor: 'rgba(0,0,0,0.38)', shadowBlur: 4, shadowX: 0, shadowY: 1.2, ...o,
 });
 export const makeShape = (o: Over<ShapeElement> = {}): ShapeElement => ({
   ...base(120, 120), kind: 'shape', shape: 'rect', fill: '#B8860B', stroke: null, strokeWidth: 0, radius: 0, ...o,
@@ -72,12 +79,17 @@ export function sanitizeElement(raw: unknown): DesignElement | null {
     meta: isObj(raw.meta) ? (raw.meta as Record<string, unknown>) : undefined,
   };
   switch (raw.kind) {
-    case 'text': return {
-      ...common, kind: 'text', text: str(raw.text, '').slice(0, 20000), font: FONTS.includes(raw.font as FontId) ? (raw.font as FontId) : 'alvi',
-      fontSize: num(raw.fontSize, 6, 400, 24), lineHeight: num(raw.lineHeight, 1, 4, 2), letterSpacing: num(raw.letterSpacing, -5, 30, 0),
-      align: raw.align === 'left' || raw.align === 'right' || raw.align === 'center' ? raw.align : 'center', dir: raw.dir === 'ltr' ? 'ltr' : 'rtl',
-      color: color(raw.color, '#3B2A1A') ?? '#3B2A1A', bgColor: color(raw.bgColor, null), padding: num(raw.padding, 0, 200, 0), radius: num(raw.radius, 0, 400, 0), shadow: raw.shadow === true,
-    };
+    case 'text': {
+      const text = str(raw.text, '').slice(0, 20000);
+      return {
+        ...common, kind: 'text', text, font: FONTS.includes(raw.font as FontId) ? (raw.font as FontId) : 'alvi',
+        fontSize: num(raw.fontSize, 6, 400, 24), lineHeight: num(raw.lineHeight, 1, 4, 2), letterSpacing: num(raw.letterSpacing, -5, 30, 0),
+        align: raw.align === 'left' || raw.align === 'right' || raw.align === 'center' ? raw.align : 'center', dir: raw.dir === 'ltr' ? 'ltr' : 'rtl',
+        color: color(raw.color, '#3B2A1A') ?? '#3B2A1A', bgColor: color(raw.bgColor, null), padding: num(raw.padding, 0, 200, 0), radius: num(raw.radius, 0, 400, 0), shadow: raw.shadow === true,
+        runs: sanitizeRuns(raw.runs, text.length), vAlign: raw.vAlign === 'top' || raw.vAlign === 'bottom' ? raw.vAlign : 'middle',
+        shadowColor: color(raw.shadowColor, 'rgba(0,0,0,0.38)') ?? 'rgba(0,0,0,0.38)', shadowBlur: num(raw.shadowBlur, 0, 60, 4), shadowX: num(raw.shadowX, -40, 40, 0), shadowY: num(raw.shadowY, -40, 40, 1.2),
+      };
+    }
     case 'shape': return {
       ...common, kind: 'shape', shape: SHAPES.includes(raw.shape as ShapeKind) ? (raw.shape as ShapeKind) : 'rect',
       fill: color(raw.fill, '#B8860B'), stroke: color(raw.stroke, null), strokeWidth: num(raw.strokeWidth, 0, 100, 0), radius: num(raw.radius, 0, 1000, 0),
