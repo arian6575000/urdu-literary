@@ -16,6 +16,8 @@ export interface CardState {
   resetDesign(): void;
   /** Scene-graph edits (all undoable; edits sharing a `key` coalesce like sliders). Locked elements ignore everything except lock/visible/name. */
   addElement(el: DesignElement): void;
+  /** Several elements as ONE undo step (e.g. the two misras of a sher). */
+  addElements(els: DesignElement[]): void;
   patchElement(id: string, patch: Partial<DesignElement>, key?: string): void;
   removeElement(id: string): void;
   duplicateElement(id: string): string | null;
@@ -50,6 +52,7 @@ export function createCardStore(initial: CardDesign, now: () => number = Date.no
       setTemplate: (id) => commit(applyTemplate(get().design, id)),
       resetDesign: () => { const d = get().design; commit({ ...newDesign({ text: d.text, title: d.title, poet: d.poet }), elements: d.elements }); }, // the look resets, the user's own elements stay
       addElement: (el) => { const d = get().design; const els = addEl(d.elements, el); if (els !== d.elements) commit({ ...d, elements: els }); },
+      addElements: (els) => { const d = get().design; let list = d.elements; for (const el of els) list = addEl(list, el); if (list !== d.elements) commit({ ...d, elements: list }); },
       patchElement: (id, patch, key) => { const d = get().design; const els = updateEl(d.elements, id, patch); if (els.some((e, i) => e !== d.elements[i])) commit({ ...d, elements: els }, key); },
       removeElement: (id) => { const d = get().design; const e = d.elements.find((x) => x.id === id); if (e && !e.locked) commit({ ...d, elements: removeEl(d.elements, id) }); },
       duplicateElement: (id) => { const d = get().design; const r = duplicateEl(d.elements, id); if (r.id) commit({ ...d, elements: r.list }); return r.id; },
