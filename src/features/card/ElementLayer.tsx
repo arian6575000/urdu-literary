@@ -3,6 +3,8 @@ import { Image, PanResponder, Text, View } from 'react-native';
 import Svg, { Ellipse, Line, Path, Polygon, Rect } from 'react-native-svg';
 import { fontFamily } from './fonts';
 import { renderable, resizeFromCorner, rotationFromHandle, starPoints, type DesignElement } from './elements';
+import { runSegments } from './runs';
+import { resolveShadow } from './textStudio';
 
 const HILITE = '#7C5CFF';
 const GUIDE = '#FF3D8B';
@@ -71,9 +73,16 @@ const ElementView = React.memo(function ElementView({ e, scale, selected, onSele
   switch (e.kind) {
     case 'text': {
       const place = e.align === 'center' ? 'center' : e.align === 'right' ? 'flex-end' : 'flex-start';
+      const vj = e.vAlign === 'top' ? 'flex-start' : e.vAlign === 'bottom' ? 'flex-end' : 'center';
+      const sh = resolveShadow(e);
+      const segs = e.runs?.length ? runSegments(e.text, e.runs) : null;
       return wrap(
-        <View pointerEvents="none" style={{ flex: 1, justifyContent: 'center', alignItems: place, backgroundColor: e.bgColor ?? undefined, borderRadius: u(e.radius), padding: u(e.padding) }}>
-          <Text style={{ fontFamily: fontFamily(e.font), fontSize: u(e.fontSize), lineHeight: u(e.fontSize * e.lineHeight), letterSpacing: u(e.letterSpacing), color: e.color, textAlign: e.align, writingDirection: e.dir, includeFontPadding: false, ...(e.shadow ? { textShadowColor: 'rgba(0,0,0,0.38)', textShadowOffset: { width: 0, height: u(1.2) }, textShadowRadius: u(4) } : null) }}>{e.text || ' '}</Text>
+        <View pointerEvents="none" style={{ flex: 1, justifyContent: vj, alignItems: place, backgroundColor: e.bgColor ?? undefined, borderRadius: u(e.radius), padding: u(e.padding) }}>
+          <Text style={{ fontFamily: fontFamily(e.font), fontSize: u(e.fontSize), lineHeight: u(e.fontSize * e.lineHeight), letterSpacing: u(e.letterSpacing), color: e.color, textAlign: e.align, writingDirection: e.dir, includeFontPadding: false, ...(sh ? { textShadowColor: sh.color, textShadowOffset: { width: u(sh.x), height: u(sh.y) }, textShadowRadius: u(sh.blur) } : null) }}>
+            {segs && segs.length
+              ? segs.map((sg, i) => <Text key={i} style={{ color: sg.color, fontSize: sg.scale ? u(e.fontSize * sg.scale) : undefined, textDecorationLine: sg.underline ? 'underline' : undefined }}>{sg.text}</Text>)
+              : (e.text || ' ')}
+          </Text>
         </View>,
       );
     }
