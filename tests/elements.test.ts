@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { addEl, centerH, centerV, duplicateEl, groupEls, makeLine, makeShape, makeSvg, makeText, moveEl, removeEl, renderable, reorderEl, sanitizeElement, sanitizeElements, starPoints, ungroupEls, updateEl, withGroup, MAX_ELEMENTS, type DesignElement } from '../src/features/card/elements';
+import { addEl, clampPosition, resizeFromCorner, rotationFromHandle, snapMove, centerH, centerV, duplicateEl, groupEls, makeLine, makeShape, makeSvg, makeText, moveEl, removeEl, renderable, reorderEl, sanitizeElement, sanitizeElements, starPoints, ungroupEls, updateEl, withGroup, MAX_ELEMENTS, type DesignElement } from '../src/features/card/elements';
 import { createCardStore } from '../src/features/card/store';
 import { BASE_DESIGN, applyTemplate, newDesign, sanitizeDesign } from '../src/features/card/templates';
 
@@ -62,6 +62,32 @@ assert.ok(ungroupEls(g.list, g.groupId!).every((e) => !e.groupId));
 // ---- geometry
 assert.equal(centerH(makeShape({ w: 100 }), 360), 130); assert.equal(centerV(makeShape({ h: 100 }), 450), 175);
 assert.equal(starPoints(100, 100).split(' ').length, 10);
+
+
+// ---- interactive geometry
+const near = (a: number, b: number, eps = 1e-6) => assert.ok(Math.abs(a - b) < eps, `${a} != ${b}`);
+const sn = snapMove({ w: 100, h: 50 }, 128, 100, 360, 450, 5); assert.equal(sn.x, 130); assert.equal(sn.guides.v, true); assert.equal(sn.y, 100); assert.equal(sn.guides.h, false);
+const sn2 = snapMove({ w: 100, h: 50 }, 100, 203, 360, 450, 5); assert.equal(sn2.x, 100); assert.equal(sn2.guides.v, false); assert.equal(sn2.y, 200); assert.equal(sn2.guides.h, true);
+// resize: unrotated
+const r0 = resizeFromCorner({ x: 10, y: 20, w: 100, h: 50, rotation: 0 }, 30, 10); assert.deepEqual(r0, { x: 10, y: 20, w: 130, h: 60 });
+assert.equal(resizeFromCorner({ x: 0, y: 0, w: 100, h: 50, rotation: 0 }, -500, -500).w, 16, 'min size');
+const ra = resizeFromCorner({ x: 0, y: 0, w: 100, h: 50, rotation: 0 }, 100, 0, true); assert.equal(ra.w, 200); assert.equal(ra.h, 100, 'aspect kept');
+// resize: rotated 90° — top-left corner must stay where it was on screen
+const el90 = { x: 100, y: 100, w: 80, h: 40, rotation: 90 };
+const corner = (b: { x: number; y: number; w: number; h: number; rotation: number }) => { const t = (b.rotation * Math.PI) / 180, cx = b.x + b.w / 2, cy = b.y + b.h / 2, lx = -b.w / 2, ly = -b.h / 2; return [cx + lx * Math.cos(t) - ly * Math.sin(t), cy + lx * Math.sin(t) + ly * Math.cos(t)]; };
+const r90 = resizeFromCorner(el90, 0, 20); // screen +y is the element's local +x at 90°
+near(r90.w, 100); near(r90.h, 40);
+const [ax, ay] = corner(el90), [bx, by] = corner({ ...r90, rotation: 90 }); near(ax, bx, 1e-9); near(ay, by, 1e-9);
+const rr = resizeFromCorner({ x: 50, y: 60, w: 90, h: 70, rotation: 33 }, 17, -9); const [c1x, c1y] = corner({ x: 50, y: 60, w: 90, h: 70, rotation: 33 }), [c2x, c2y] = corner({ ...rr, rotation: 33 }); near(c1x, c2x, 1e-9); near(c1y, c2y, 1e-9);
+// rotate via handle
+assert.equal(rotationFromHandle({ w: 100, h: 50, rotation: 0 }, 0, 0, 30), 0, 'no movement = no rotation');
+assert.equal(rotationFromHandle({ w: 100, h: 50, rotation: 0 }, 100, 55, 30), 90, 'handle dragged to the right of the centre');
+assert.equal(rotationFromHandle({ w: 100, h: 50, rotation: 0 }, 0, 130, 30, false), 180);
+assert.equal(rotationFromHandle({ w: 100, h: 50, rotation: 0 }, 3, 0, 30), 0, 'snaps to 15° steps');
+const free = rotationFromHandle({ w: 100, h: 50, rotation: 0 }, 20, 0, 30, false); assert.ok(free > 0 && free < 90);
+// clamp
+assert.deepEqual(clampPosition({ w: 100, h: 50 }, -500, 900, 360, 450), { x: -76, y: 426 });
+assert.deepEqual(clampPosition({ w: 100, h: 50 }, 50, 60, 360, 450), { x: 50, y: 60 });
 
 // ---- store: every element edit is undoable, content never lost
 let clock = 0; const st = createCardStore(newDesign(sample), () => clock);
