@@ -5,11 +5,13 @@ import { Chip, Field, HScroll, Icon, IconButton, Muted, Row, Segmented, Slider, 
 import { useTheme } from '../../../hooks/useTheme';
 import { pickCardImage } from '../../../services/cardExport';
 import { confirmDialog, toast } from '../../../stores/ui';
-import { hexToHsv, normalizeHex } from '../../../utils/color';
+import { hexToHsv, normalizeHex, withAlpha } from '../../../utils/color';
 import { excerpt } from '../../../utils/text';
 import { useCard, useCardApi } from '../context';
 import { centerH, centerV, makeImage, makeLine, makeShape, makeSvg, makeText, type DesignElement, type ShapeKind } from '../elements';
 import { CARD_FONTS } from '../fonts';
+import { adjustRunsForEdit, aerabSpans, restyle, runSegments, wordSpans, type RunPatch, type RunStyle } from '../runs';
+import { SHADOW_PRESETS, makeSherElements, splitCouplets } from '../textStudio';
 import { canvasSize } from '../types';
 import { ORNAMENTS, type Ornament } from './assets';
 import { ST } from './strings';
@@ -48,14 +50,21 @@ function AddTab({ setSelId, setTab }: { setSelId: (id: string) => void; setTab: 
   const accent = useCard((s) => s.design.accent);
   const textColor = useCard((s) => s.design.textColor);
   const font = useCard((s) => s.design.font);
+  const baseText = useCard((s) => s.design.text);
   const cv = canvasSize(ratio);
   const place = (el: DesignElement) => {
     const e = { ...el, x: centerH(el, cv.w), y: centerV(el, cv.h) } as DesignElement;
     api.addElement(e); setSelId(e.id); setTab('edit');
   };
+  const sher = () => {
+    const [couplet] = splitCouplets(baseText);
+    const els = makeSherElements(couplet ?? [ST.add.sherSample[0], ST.add.sherSample[1]], { cw: cv.w, ch: cv.h, font, color: textColor });
+    api.addElements(els); setSelId(els[0].id); setTab('edit');
+  };
   const shape = (shape: ShapeKind, w = 110, h = 110) => place(makeShape({ shape, w, h, fill: accent }));
   const tiles: { label: string; icon: IconName; run: () => void }[] = [
     { label: ST.add.text, icon: 'text', run: () => place(makeText({ text: ST.add.textSample, font, color: textColor, fontSize: 28, w: 240, h: 80 })) },
+    { label: ST.add.sher, icon: 'reorder-two-outline', run: sher },
     { label: ST.add.rect, icon: 'square-outline', run: () => shape('rect', 150, 100) },
     { label: ST.add.ellipse, icon: 'ellipse-outline', run: () => shape('ellipse') },
     { label: ST.add.triangle, icon: 'triangle-outline', run: () => shape('triangle') },
@@ -98,7 +107,7 @@ function AddTab({ setSelId, setTab }: { setSelId: (id: string) => void; setTab: 
 const ornamentEl = (o: Ornament, color: string) => makeSvg({ paths: o.paths, viewBox: o.viewBox, w: o.w, h: o.h, name: o.name, fill: o.fill ? color : null, stroke: o.fill ? null : color, strokeWidth: o.fill ? 0 : 4 });
 
 /* ---------------------------------------------------------------- edit */
-type Sec = 'content' | 'style' | 'color' | 'transform';
+type Sec = 'content' | 'style' | 'words' | 'effects' | 'color' | 'transform';
 
 function EditTab({ selId, setSelId }: { selId: string | null; setSelId: (id: string | null) => void }) {
   const { c } = useTheme();
@@ -110,7 +119,7 @@ function EditTab({ selId, setSelId }: { selId: string | null; setSelId: (id: str
   if (!el) return <Muted center>{ST.noSel}</Muted>;
   const cv = canvasSize(ratio);
   const patch = (p: Partial<DesignElement>, key?: string) => api.patchElement(el.id, p, key ? `${el.id}:${key}` : undefined);
-  const secs: Sec[] = el.kind === 'text' ? ['content', 'style', 'color', 'transform'] : el.kind === 'image' ? ['content', 'transform'] : ['color', 'transform'];
+  const secs: Sec[] = el.kind === 'text' ? ['content', 'style', 'words', 'effects', 'color', 'transform'] : el.kind === 'image' ? ['content', 'transform'] : ['color', 'transform'];
   const active = secs.includes(sec) ? sec : secs[0];
   const idx = elements.findIndex((e) => e.id === el.id);
   const remove = async () => { if (el.locked) { toast(ST.unlockFirst, 'error'); return; } if (await confirmDialog(ST.deleteAsk, { danger: true, okLabel: ST.act.delete })) { api.removeElement(el.id); setSelId(null); } };
@@ -135,7 +144,7 @@ function EditTab({ selId, setSelId }: { selId: string | null; setSelId: (id: str
 
       {active === 'content' && el.kind === 'text' ? (
         <>
-          <Field label={ST.f.text} multiline value={el.text} onChangeText={(t) => patch({ text: t }, 'text')} style={{ minHeight: 90 }} />
+          <Field label={ST.f.text} multiline value={el.text} onChangeText={(t) => patch({ text: t, runs: adjustRunsForEdit(el.runs, el.text, t) }, 'text')} style={{ minHeight: 90 }} />
           <UText size={14} color={c.muted} spacing={1.5}>{ST.f.font}</UText>
           <HScroll>{CARD_FONTS.map((f) => <Chip key={f.id} label={f.name} active={el.font === f.id} onPress={() => patch({ font: f.id })} />)}</HScroll>
         </>
@@ -155,11 +164,15 @@ function EditTab({ selId, setSelId }: { selId: string | null; setSelId: (id: str
           {sl(ST.f.letterSp, 'letterSpacing', -2, 20, 1)}
           <Segmented<'right' | 'center' | 'left'> value={el.align} onChange={(align) => patch({ align })} options={[{ id: 'right', label: ST.f.right }, { id: 'center', label: ST.f.center }, { id: 'left', label: ST.f.left }]} />
           <Segmented<'rtl' | 'ltr'> value={el.dir} onChange={(dir) => patch({ dir })} options={[{ id: 'rtl', label: ST.f.rtl }, { id: 'ltr', label: ST.f.ltr }]} />
-          <SwitchRow label={ST.f.shadow} value={el.shadow} onChange={(shadow) => patch({ shadow })} />
+          <UText size={14} color={c.muted} spacing={1.5}>{ST.tx.vAlign}</UText>
+          <Segmented<'top' | 'middle' | 'bottom'> value={el.vAlign} onChange={(vAlign) => patch({ vAlign })} options={[{ id: 'top', label: ST.tx.top }, { id: 'middle', label: ST.tx.middle }, { id: 'bottom', label: ST.tx.bottom }]} />
           {sl(ST.f.padding, 'padding', 0, 60)}
           {sl(ST.f.radius, 'radius', 0, 80)}
         </>
       ) : null}
+
+      {active === 'words' && el.kind === 'text' ? <WordStyler el={el} patch={patch} /> : null}
+      {active === 'effects' && el.kind === 'text' ? <EffectsEditor el={el} patch={patch} /> : null}
 
       {active === 'color' && el.kind === 'text' ? <>{sw('color', ST.f.color)}{sw('bgColor', ST.f.bg, true)}</> : null}
       {active === 'color' && (el.kind === 'shape' || el.kind === 'svg') ? (
@@ -188,6 +201,83 @@ function EditTab({ selId, setSelId }: { selId: string | null; setSelId: (id: str
             <Chip label={ST.act.back} icon="arrow-down-circle-outline" onPress={() => api.reorderElement(el.id, 'back')} />
           </Row>
           <Muted>{`${idx + 1} / ${elements.length}`}</Muted>
+        </>
+      ) : null}
+    </>
+  );
+}
+
+type TextEl = Extract<DesignElement, { kind: 'text' }>;
+type PatchFn = (p: Partial<DesignElement>, key?: string) => void;
+
+/** Word-level styling without a text cursor: tap words to select them, then pick colour / size / underline. Styles live in `runs`. */
+function WordStyler({ el, patch }: { el: TextEl; patch: PatchFn }) {
+  const { c } = useTheme();
+  const words = React.useMemo(() => wordSpans(el.text), [el.text]);
+  const [sel, setSel] = useState<number[]>([]);
+  React.useEffect(() => setSel([]), [el.id, el.text]);
+  const len = el.text.length;
+  const ranges = sel.map((i) => words[i]).filter(Boolean) as [number, number][];
+  const apply = (p: RunPatch) => patch({ runs: restyle(el.runs, len, ranges, p) });
+  const style: (RunStyle | undefined)[] = []; { let off = 0; for (const sg of runSegments(el.text, el.runs)) { for (let k = 0; k < sg.text.length; k++) style[off + k] = sg; off += sg.text.length; } }
+  const covered = (a: number, b: number, pred: (s: RunStyle | undefined) => boolean) => { for (let i = a; i < b; i++) if (!pred(style[i])) return false; return true; };
+  const underlined = ranges.length > 0 && ranges.every(([a, b]) => covered(a, b, (s) => !!s?.underline));
+  const scaleNow = ranges.length > 0 && ranges.every(([a, b]) => covered(a, b, (s) => (s?.scale ?? 1) === (style[ranges[0][0]]?.scale ?? 1))) ? style[ranges[0][0]]?.scale ?? 1 : -1;
+  const aerab = aerabSpans(el.text);
+  if (!words.length) return <Muted>{ST.tx.wordsHint}</Muted>;
+  return (
+    <>
+      <Muted>{ST.tx.wordsHint}</Muted>
+      <Row wrap gap={8}>
+        {words.map(([a, b], i) => { const on = sel.includes(i); const st = style[a]; return (
+          <Pressable key={`${a}-${b}`} accessibilityRole="button" accessibilityState={{ selected: on }} onPress={() => setSel((cur) => (cur.includes(i) ? cur.filter((x) => x !== i) : [...cur, i]))} style={{ minHeight: 44, paddingHorizontal: 12, borderRadius: 14, borderWidth: on ? 2 : 1, borderColor: on ? c.primary : c.line, backgroundColor: on ? c.primarySoft : c.surface, alignItems: 'center', justifyContent: 'center' }}>
+            <UText size={16} color={st?.color ?? c.text} spacing={1.6}>{el.text.slice(a, b)}</UText>
+          </Pressable>); })}
+      </Row>
+      <Row wrap gap={8}>
+        <Chip label={ST.tx.selAll} icon="checkmark-done-outline" onPress={() => setSel(words.map((_, i) => i))} />
+        <Chip label={ST.tx.selNone} icon="close-outline" onPress={() => setSel([])} />
+      </Row>
+      {ranges.length === 0 ? <Muted>{ST.tx.wordsNone}</Muted> : (
+        <>
+          <ColorRow label={ST.f.color} value={style[ranges[0][0]]?.color ?? null} onChange={(v) => apply({ color: v })} />
+          <UText size={14} color={c.muted} spacing={1.5}>{ST.tx.size}</UText>
+          <HScroll>{[0.8, 1, 1.3, 1.6, 2].map((k) => <Chip key={k} label={`×${k}`} active={scaleNow === k} onPress={() => apply({ scale: k })} />)}</HScroll>
+          <Row wrap gap={8}>
+            <Chip label={ST.tx.underline} icon="remove-outline" active={underlined} onPress={() => apply({ underline: !underlined })} />
+            <Chip label={ST.tx.clear} icon="refresh-outline" onPress={() => apply({ color: null, scale: null, underline: null })} />
+          </Row>
+        </>
+      )}
+      <UText size={14} color={c.muted} spacing={1.5}>{ST.tx.quick}</UText>
+      <Row wrap gap={8}>
+        {aerab.length ? <Chip label={ST.tx.aerabDim} onPress={() => patch({ runs: restyle(el.runs, len, aerab, { color: withAlpha(el.color, 0.45) }) })} /> : null}
+        {aerab.length ? <Chip label={ST.tx.aerabPlain} onPress={() => patch({ runs: restyle(el.runs, len, aerab, { color: null }) })} /> : null}
+        <Chip label={ST.tx.firstBig} onPress={() => patch({ runs: restyle(el.runs, len, [words[0]], { scale: 1.6 }) })} />
+      </Row>
+    </>
+  );
+}
+
+/** Shadow / glow presets plus fine controls. Outline and gradient fill need a different renderer and are planned for Phase 6. */
+function EffectsEditor({ el, patch }: { el: TextEl; patch: PatchFn }) {
+  const { c } = useTheme();
+  const preset = (sp: { color: string; blur: number; x: number; y: number }) => patch({ shadow: true, shadowColor: sp.color, shadowBlur: sp.blur, shadowX: sp.x, shadowY: sp.y });
+  return (
+    <>
+      <UText size={15} color={c.primary} spacing={1.6}>{ST.tx.effectsTitle}</UText>
+      <HScroll>
+        <Chip label={ST.tx.none} active={!el.shadow} onPress={() => patch({ shadow: false })} />
+        <Chip label={ST.tx.soft} onPress={() => preset(SHADOW_PRESETS.soft())} />
+        <Chip label={ST.tx.hard} onPress={() => preset(SHADOW_PRESETS.hard())} />
+        <Chip label={ST.tx.glow} onPress={() => preset(SHADOW_PRESETS.glow(el.color))} />
+      </HScroll>
+      {el.shadow ? (
+        <>
+          <ColorRow label={ST.tx.shadowColor} value={el.shadowColor} onChange={(v) => v && patch({ shadowColor: v }, 'shc')} />
+          <Slider label={ST.tx.blur} value={Math.round(el.shadowBlur)} min={0} max={40} onChange={(v) => patch({ shadowBlur: v }, 'shb')} />
+          <Slider label={ST.tx.offX} value={Math.round(el.shadowX)} min={-20} max={20} onChange={(v) => patch({ shadowX: v }, 'shx')} />
+          <Slider label={ST.tx.offY} value={Math.round(el.shadowY)} min={-20} max={20} onChange={(v) => patch({ shadowY: v }, 'shy')} />
         </>
       ) : null}
     </>
